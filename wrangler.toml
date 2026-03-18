@@ -4,8 +4,8 @@ compatibility_date = "2026-03-07"
 
 [[kv_namespaces]]
 binding = "PRICING_KV"
-id = "TBD_AFTER_CREATE"
-preview_id = "TBD_AFTER_CREATE"
+id = "a413f954ffca49c1b620f7b8bb83b051"
+preview_id = "3427c02da52d443cb317985d80c1044f"
 
 [triggers]
 crons = ["0 */6 * * *"]
