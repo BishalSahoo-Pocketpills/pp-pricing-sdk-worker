@@ -1,0 +1,23 @@
+name = "pp-pricing-worker"
+main = "src/index.ts"
+compatibility_date = "2026-03-07"
+
+[[kv_namespaces]]
+binding = "PRICING_KV"
+id = "TBD_AFTER_CREATE"
+preview_id = "TBD_AFTER_CREATE"
+
+[triggers]
+crons = ["0 */6 * * *"]
+
+[vars]
+VOUCHERIFY_BASE_URL = "https://as1.api.voucherify.io"
+ALLOWED_ORIGINS = "https://pocketpills.com,https://www.pocketpills.com"
+PRICING_CURRENCY = "CAD"
+PRICING_LOCALE = "en-CA"
+PRICING_CURRENCY_SYMBOL = "$"
+
+# Secrets (set via `wrangler secret put`):
+# VOUCHERIFY_APP_ID
+# VOUCHERIFY_SECRET_KEY
+# VOUCHERIFY_WEBHOOK_SECRET

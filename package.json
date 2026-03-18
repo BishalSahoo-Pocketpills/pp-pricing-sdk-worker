@@ -1,0 +1,21 @@
+{
+  "name": "pp-pricing-worker",
+  "version": "0.1.0",
+  "description": "Cloudflare Worker for edge pricing via Voucherify",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250312.0",
+    "@vitest/coverage-v8": "^4.0.18",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18",
+    "wrangler": "^4.7.0"
+  }
+}

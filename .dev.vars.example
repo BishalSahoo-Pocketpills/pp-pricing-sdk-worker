@@ -1,0 +1,3 @@
+VOUCHERIFY_APP_ID=your-app-id
+VOUCHERIFY_SECRET_KEY=your-secret-key
+VOUCHERIFY_WEBHOOK_SECRET=your-webhook-secret
