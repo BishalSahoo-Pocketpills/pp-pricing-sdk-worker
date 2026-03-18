@@ -10,6 +10,14 @@ export async function verifyWebhookSignature(
   const body = await request.clone().text();
   if (!body) return false;
 
+  // Voucherify signs JSON with whitespace removed
+  let signingBody = body;
+  try {
+    signingBody = JSON.stringify(JSON.parse(body));
+  } catch {
+    // Not JSON — sign raw body
+  }
+
   const key = await crypto.subtle.importKey(
     'raw',
     encoder.encode(secret),
@@ -18,7 +26,7 @@ export async function verifyWebhookSignature(
     ['sign'],
   );
 
-  const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(body));
+  const mac = await crypto.subtle.sign('HMAC', key, encoder.encode(signingBody));
   const expected = hexEncode(mac);
   return timingSafeEqual(signature, expected);
 }
