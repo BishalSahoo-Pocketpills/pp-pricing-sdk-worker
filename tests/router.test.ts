@@ -80,8 +80,8 @@ describe('router', () => {
     expect(res.status).toBe(200);
   });
 
-  it('routes POST /webhook', async () => {
-    const req = new Request('https://worker.test/webhook', {
+  it('routes POST /webhook/v1/voucherify', async () => {
+    const req = new Request('https://worker.test/webhook/v1/voucherify', {
       method: 'POST',
       body: '{}',
       headers: { 'x-voucherify-signature': 'bad' },

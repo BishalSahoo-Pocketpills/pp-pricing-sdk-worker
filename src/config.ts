@@ -43,7 +43,7 @@ export const RETRY = {
 
 // API paths
 export const PATHS = {
-  WEBHOOK: '/webhook',
+  WEBHOOK: '/webhook/v1/voucherify',
   PRICES: '/api/prices/',
   VALIDATE: '/api/validate',
   QUALIFY: '/api/qualify',
