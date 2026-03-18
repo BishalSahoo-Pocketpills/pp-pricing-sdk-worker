@@ -1,0 +1,116 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    # Skip CI-triggered commits (version bumps) to prevent infinite loop
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Run tests
+        run: pnpm run test
+
+      - name: Determine version bump type
+        id: bump
+        run: |
+          # Get the last tag, or fall back to scanning recent commits only
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -z "$LAST_TAG" ]; then
+            # No previous tag — this is the first CI release
+            MESSAGES=$(git log --format="%s" -1 HEAD)
+            echo "First release — scanning latest commit only"
+          else
+            MESSAGES=$(git log --format="%s" ${LAST_TAG}..HEAD)
+            echo "Last tag: $LAST_TAG"
+          fi
+
+          echo "Commits to analyze:"
+          echo "$MESSAGES"
+          echo ""
+
+          if echo "$MESSAGES" | grep -qiE "BREAKING CHANGE|^[a-z]+(\(.*\))?!:"; then
+            echo "TYPE=major" >> $GITHUB_OUTPUT
+            echo "Detected: major (breaking change)"
+          elif echo "$MESSAGES" | grep -qiE "^feat(\(.*\))?:"; then
+            echo "TYPE=minor" >> $GITHUB_OUTPUT
+            echo "Detected: minor (new feature)"
+          else
+            echo "TYPE=patch" >> $GITHUB_OUTPUT
+            echo "Detected: patch (fix/chore)"
+          fi
+
+      - name: Bump version
+        id: version
+        run: |
+          CURRENT=$(node -p "require('./package.json').version")
+          pnpm version ${{ steps.bump.outputs.TYPE }} --no-git-tag-version
+          VERSION=$(node -p "require('./package.json').version")
+
+          # If the tag already exists, keep bumping until we find a free version
+          while git ls-remote --tags origin "refs/tags/v${VERSION}" | grep -q .; do
+            echo "Tag v${VERSION} already exists, bumping again..."
+            pnpm version patch --no-git-tag-version
+            VERSION=$(node -p "require('./package.json').version")
+          done
+
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "New version: v$VERSION (was v$CURRENT)"
+
+      - name: Commit version bump, tag, and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json
+
+          if git diff --cached --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore: bump version to v${{ steps.version.outputs.VERSION }} [skip ci]"
+          fi
+
+          if ! git tag -l "v${{ steps.version.outputs.VERSION }}" | grep -q .; then
+            git tag -a "v${{ steps.version.outputs.VERSION }}" -m "v${{ steps.version.outputs.VERSION }}"
+          fi
+
+          git push && git push --tags
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: v${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
