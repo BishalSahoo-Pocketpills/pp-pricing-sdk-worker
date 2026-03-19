@@ -176,7 +176,7 @@ describe('handleValidate', () => {
     await handleValidate(req, env);
     const call = spy.mock.calls[0];
     const body = JSON.parse(call[1]!.body as string);
-    expect(body.code).not.toContain('<');
+    expect(body.redeemables[0].id).not.toContain('<');
   });
 
   it('returns 400 for invalid JSON', async () => {

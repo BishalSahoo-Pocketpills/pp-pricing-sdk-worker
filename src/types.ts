@@ -38,6 +38,14 @@ export interface VoucherifyRedeemable {
   result?: { discount?: VoucherifyDiscount };
   campaign?: string;
   campaign_name?: string;
+  applicable_to?: {
+    data?: Array<{
+      object: string;
+      id?: string;
+      source_id?: string;
+    }>;
+    total?: number;
+  };
 }
 
 export interface VoucherifyDiscount {

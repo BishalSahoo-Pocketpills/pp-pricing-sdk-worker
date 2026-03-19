@@ -143,6 +143,19 @@ export function parseQualificationResponse(
   return [];
 }
 
+function isApplicableToProduct(
+  redeemable: VoucherifyRedeemable,
+  productSourceId: string,
+): boolean {
+  const applicable = redeemable.applicable_to;
+  // No applicable_to or empty list means applies to all products
+  if (!applicable?.data || applicable.data.length === 0) return true;
+  return applicable.data.some(
+    (item) =>
+      item.source_id === productSourceId || item.id === productSourceId,
+  );
+}
+
 export function buildPricingMatrix(
   products: Record<string, ProductEntry>,
   redeemables: VoucherifyRedeemable[],
@@ -151,7 +164,10 @@ export function buildPricingMatrix(
   const result: Record<string, PricingEntry> = {};
 
   for (const [productId, product] of Object.entries(products)) {
-    const best = selectBestDiscount(redeemables, product.basePrice);
+    const applicable = redeemables.filter((r) =>
+      isApplicableToProduct(r, productId),
+    );
+    const best = selectBestDiscount(applicable, product.basePrice);
     result[productId] = buildPricingEntry(product.basePrice, best, env);
   }
 

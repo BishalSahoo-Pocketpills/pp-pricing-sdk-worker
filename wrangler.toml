@@ -11,7 +11,7 @@ preview_id = "3427c02da52d443cb317985d80c1044f"
 crons = ["0 */6 * * *"]
 
 [vars]
-VOUCHERIFY_BASE_URL = "https://as1.api.voucherify.io"
+VOUCHERIFY_BASE_URL = "https://us1.api.voucherify.io"
 ALLOWED_ORIGINS = "https://pocketpills.com,https://www.pocketpills.com"
 PRICING_CURRENCY = "CAD"
 PRICING_LOCALE = "en-CA"

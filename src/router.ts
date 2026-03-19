@@ -35,7 +35,7 @@ export async function router(
     if (!segment) {
       return new Response('Missing segment', { status: 400 });
     }
-    return handlePrices(request, env, segment);
+    return handlePrices(request, env, segment, ctx);
   }
 
   // Validate

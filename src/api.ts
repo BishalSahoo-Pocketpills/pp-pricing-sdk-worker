@@ -8,6 +8,7 @@ export async function handlePrices(
   request: Request,
   env: Env,
   segment: string,
+  ctx?: ExecutionContext,
 ): Promise<Response> {
   const url = new URL(request.url);
   const rawProducts = url.searchParams.get('products') || '';
@@ -60,11 +61,15 @@ export async function handlePrices(
     }
   }
 
-  // Register unknown products in catalog (fire-and-forget)
+  // Register unknown products in catalog (background)
   if (Object.keys(newProducts).length > 0) {
-    updateProducts(env.PRICING_KV, newProducts).catch((err) =>
-      console.error('[pp-pricing-worker] Failed to update products:', err),
+    const updatePromise = updateProducts(env.PRICING_KV, newProducts).catch(
+      (err) =>
+        console.error('[pp-pricing-worker] Failed to update products:', err),
     );
+    if (ctx) {
+      ctx.waitUntil(updatePromise);
+    }
   }
 
   const body: PricingResponse = {
@@ -87,7 +92,16 @@ export async function handleValidate(
     return jsonResponse({ error: 'Invalid JSON' }, 400, request, env);
   }
 
-  if (body.code) {
+  // Wrap voucher code into Voucherify validations format if needed
+  if (body.code && !body.redeemables) {
+    body = {
+      redeemables: [
+        { object: 'voucher', id: sanitizeString(body.code, 64) },
+      ],
+      customer: body.customer,
+      order: body.order,
+    };
+  } else if (body.code) {
     body.code = sanitizeString(body.code, 64);
   }
 

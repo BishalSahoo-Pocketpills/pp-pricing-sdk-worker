@@ -74,7 +74,7 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
         const orderItems = Object.entries(products).map(
           ([id, product]) => ({
             source_id: id,
-            product_id: id,
+            related_object: 'product',
             quantity: 1,
             price: product.basePrice * 100, // cents
           }),
