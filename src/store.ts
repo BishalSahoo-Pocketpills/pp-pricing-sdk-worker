@@ -1,5 +1,5 @@
 import { KV_KEYS } from './config';
-import type { PricingEntry, SegmentDefinition, ProductEntry } from './types';
+import type { PricingEntry, SegmentDefinition, ProductEntry, OffersBundle } from './types';
 
 export async function getPricing(
   kv: KVNamespace,
@@ -58,6 +58,22 @@ export async function updateProducts(
 
   await setProducts(kv, existing);
   return existing;
+}
+
+export async function getOffers(
+  kv: KVNamespace,
+  segment: string,
+): Promise<OffersBundle | null> {
+  const data = await kv.get(KV_KEYS.OFFERS + segment, 'json');
+  return data as OffersBundle | null;
+}
+
+export async function setOffers(
+  kv: KVNamespace,
+  segment: string,
+  data: OffersBundle,
+): Promise<void> {
+  await kv.put(KV_KEYS.OFFERS + segment, JSON.stringify(data));
 }
 
 export async function getMeta(

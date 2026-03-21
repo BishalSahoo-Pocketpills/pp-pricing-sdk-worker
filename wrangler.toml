@@ -12,12 +12,15 @@ crons = ["0 */6 * * *"]
 
 [vars]
 VOUCHERIFY_BASE_URL = "https://us1.api.voucherify.io"
-ALLOWED_ORIGINS = "https://pocketpills.com,https://www.pocketpills.com"
+ALLOWED_ORIGINS = "https://pocketpills.com,https://www.pocketpills.com,https://try.pocketpills.com"
 PRICING_CURRENCY = "CAD"
 PRICING_LOCALE = "en-CA"
 PRICING_CURRENCY_SYMBOL = "$"
+CMS_SYNC_ENABLED = "false"
 
 # Secrets (set via `wrangler secret put`):
 # VOUCHERIFY_APP_ID
 # VOUCHERIFY_SECRET_KEY
 # VOUCHERIFY_WEBHOOK_SECRET
+# WEBFLOW_API_TOKEN
+# WEBFLOW_SITE_ID

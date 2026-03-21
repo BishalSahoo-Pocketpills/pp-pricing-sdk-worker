@@ -1,13 +1,15 @@
 import { PRICING_EVENTS, KV_KEYS } from './config';
 import { verifyWebhookSignature } from './security';
-import { getProducts, setPricing, getMeta, setMeta } from './store';
+import { getProducts, setPricing, setOffers, getMeta, setMeta } from './store';
 import { fetchQualifications } from './voucherify-client';
 import {
   parseQualificationResponse,
   buildPricingMatrix,
 } from './pricing';
+import { buildOffersBundle } from './offers';
 import { discoverSegments } from './segments';
 import { setSegments } from './store';
+import { syncPricingToCMS } from './cms';
 import type { Env } from './types';
 
 export async function handleWebhook(
@@ -88,7 +90,8 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
 
         const redeemables = parseQualificationResponse(response);
         const matrix = buildPricingMatrix(products, redeemables, env);
-        return { segment: segment.key, matrix };
+        const offers = buildOffersBundle(redeemables, env);
+        return { segment: segment.key, matrix, offers };
       } catch (error) {
         console.error(
           `[pp-pricing-worker] Failed to qualify segment "${segment.key}":`,
@@ -99,16 +102,28 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
     }),
   );
 
-  // Write pricing matrices to KV
+  // Write pricing matrices and offers to KV in parallel
+  const writes: Promise<void>[] = [];
   for (const result of results) {
     if (result) {
-      await setPricing(env.PRICING_KV, result.segment, result.matrix);
+      writes.push(setPricing(env.PRICING_KV, result.segment, result.matrix));
+      writes.push(setOffers(env.PRICING_KV, result.segment, result.offers));
     }
   }
+  await Promise.all(writes);
 
   await setMeta(
     env.PRICING_KV,
     KV_KEYS.META_LAST_REVALIDATION,
     new Date().toISOString(),
   );
+
+  // Sync pricing to Webflow CMS if enabled
+  if (env.CMS_SYNC_ENABLED === 'true') {
+    try {
+      await syncPricingToCMS(env);
+    } catch (error) {
+      console.error('[pp-pricing-worker] CMS sync failed:', error);
+    }
+  }
 }

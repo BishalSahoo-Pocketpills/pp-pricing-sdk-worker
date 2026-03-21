@@ -12,6 +12,9 @@ export function mockEnv(overrides: Partial<Env> = {}): Env {
     PRICING_CURRENCY: 'CAD',
     PRICING_LOCALE: 'en-CA',
     PRICING_CURRENCY_SYMBOL: '$',
+    WEBFLOW_API_TOKEN: 'test-webflow-token',
+    WEBFLOW_SITE_ID: 'test-site-id',
+    CMS_SYNC_ENABLED: 'false',
     ...overrides,
   };
 }
@@ -120,6 +123,61 @@ export const WEBHOOK_PAYLOAD_IRRELEVANT = {
   type: 'customer.created',
   data: {
     id: 'cust_123',
+  },
+};
+
+export const REDEEMABLE_COUPON_VOUCHER: VoucherifyRedeemable = {
+  id: 'voucher_coupon_1',
+  object: 'voucher',
+  campaign_type: 'DISCOUNT_COUPONS',
+  voucher: { code: 'SAVE25' },
+  result: {
+    discount: {
+      type: 'PERCENT',
+      percent_off: 25,
+    },
+  },
+  campaign_name: 'Summer Coupons',
+};
+
+export const REDEEMABLE_REFERRAL_VOUCHER: VoucherifyRedeemable = {
+  id: 'voucher_referral_1',
+  object: 'voucher',
+  campaign_type: 'REFERRAL_PROGRAM',
+  voucher: { code: 'REF-JOHN' },
+  result: {
+    discount: {
+      type: 'AMOUNT',
+      amount_off: 1500, // $15.00
+    },
+  },
+  campaign_name: 'Refer a Friend',
+};
+
+export const REDEEMABLE_LOYALTY_CARD: VoucherifyRedeemable = {
+  id: 'loyalty_card_1',
+  object: 'loyalty_card',
+  campaign_name: 'Rewards Program',
+  result: {
+    loyalty_card: {
+      points: 500,
+      balance: 350,
+      next_expiration_date: '2026-06-01',
+      next_expiration_points: 100,
+    },
+  },
+};
+
+export const REDEEMABLE_GIFT_VOUCHER: VoucherifyRedeemable = {
+  id: 'voucher_gift_1',
+  object: 'voucher',
+  voucher: { code: 'GIFT-ABC' },
+  campaign_name: 'Gift Cards',
+  result: {
+    gift: {
+      amount: 5000, // $50.00
+      balance: 3500, // $35.00
+    },
   },
 };
 

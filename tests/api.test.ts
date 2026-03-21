@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   handlePrices,
+  handleOffers,
   handleValidate,
   handleQualify,
   handleSegments,
@@ -8,7 +9,7 @@ import {
 } from '../src/api';
 import { MockKV } from './helpers/mock-kv';
 import { mockEnv } from './helpers/fixtures';
-import type { PricingEntry } from '../src/types';
+import type { PricingEntry, OffersBundle } from '../src/types';
 
 function makeRequest(
   url: string,
@@ -282,5 +283,63 @@ describe('handleHealth', () => {
     const res = await handleHealth(req, env);
     const data = await res.json();
     expect(data.lastRevalidation).toBeNull();
+  });
+});
+
+describe('handleOffers', () => {
+  it('returns 400 when segment is empty', async () => {
+    const env = mockEnv();
+    const req = makeRequest('https://worker.test/api/offers/');
+    const res = await handleOffers(req, env, '');
+    expect(res.status).toBe(400);
+    const data = await res.json();
+    expect(data.error).toContain('Missing segment');
+  });
+
+  it('returns cached offers for segment', async () => {
+    const kv = new MockKV();
+    const offers: OffersBundle = {
+      coupons: [
+        {
+          id: 'coupon_1',
+          category: 'coupon',
+          title: 'Summer Sale',
+          description: 'Save 25%',
+          code: 'SAVE25',
+          discount: {
+            type: 'PERCENT',
+            percentOff: 25,
+            label: '25% OFF',
+          },
+          applicableProductIds: [],
+        },
+      ],
+      promotions: [],
+      loyalty: [],
+      referrals: [],
+      gifts: [],
+    };
+    await kv.put('offers:anonymous', JSON.stringify(offers));
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
+    const req = makeRequest('https://worker.test/api/offers/anonymous');
+    const res = await handleOffers(req, env, 'anonymous');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.segment).toBe('anonymous');
+    expect(data.offers.coupons.length).toBe(1);
+    expect(data.offers.coupons[0].code).toBe('SAVE25');
+  });
+
+  it('returns empty bundle for unknown segment', async () => {
+    const env = mockEnv();
+    const req = makeRequest('https://worker.test/api/offers/unknown');
+    const res = await handleOffers(req, env, 'unknown');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.offers.coupons).toEqual([]);
+    expect(data.offers.promotions).toEqual([]);
+    expect(data.offers.loyalty).toEqual([]);
+    expect(data.offers.referrals).toEqual([]);
+    expect(data.offers.gifts).toEqual([]);
   });
 });

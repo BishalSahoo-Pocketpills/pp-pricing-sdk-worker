@@ -1,4 +1,5 @@
 import { revalidateAllSegments } from './webhook';
+import { syncPricingToCMS } from './cms';
 import type { Env } from './types';
 
 export async function handleScheduled(env: Env): Promise<void> {

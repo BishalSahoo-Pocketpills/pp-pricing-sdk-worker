@@ -3,10 +3,14 @@ import { handleCorsPreflight } from './security';
 import { handleWebhook } from './webhook';
 import {
   handlePrices,
+  handleOffers,
   handleValidate,
   handleQualify,
   handleSegments,
   handleHealth,
+  handleCMSSetup,
+  handleCMSStatus,
+  handleCMSSync,
 } from './api';
 import type { Env } from './types';
 
@@ -38,6 +42,15 @@ export async function router(
     return handlePrices(request, env, segment, ctx);
   }
 
+  // Offers — /api/offers/:segment
+  if (method === 'GET' && pathname.startsWith(PATHS.OFFERS)) {
+    const segment = pathname.slice(PATHS.OFFERS.length);
+    if (!segment) {
+      return new Response('Missing segment', { status: 400 });
+    }
+    return handleOffers(request, env, segment);
+  }
+
   // Validate
   if (method === 'POST' && pathname === PATHS.VALIDATE) {
     return handleValidate(request, env);
@@ -56,6 +69,21 @@ export async function router(
   // Health
   if (method === 'GET' && pathname === PATHS.HEALTH) {
     return handleHealth(request, env);
+  }
+
+  // CMS Setup
+  if (method === 'POST' && pathname === PATHS.CMS_SETUP) {
+    return handleCMSSetup(request, env);
+  }
+
+  // CMS Status
+  if (method === 'GET' && pathname === PATHS.CMS_STATUS) {
+    return handleCMSStatus(request, env);
+  }
+
+  // CMS Sync
+  if (method === 'POST' && pathname === PATHS.CMS_SYNC) {
+    return handleCMSSync(request, env, ctx);
   }
 
   return new Response('Not Found', { status: 404 });

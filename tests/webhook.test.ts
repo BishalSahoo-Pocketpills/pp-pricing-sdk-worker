@@ -211,6 +211,61 @@ describe('revalidateAllSegments', () => {
     expect(memberPricing['prod-1'].discountedPrice).toBe(48); // 60 - 20% = 48
   });
 
+  it('writes offers bundle alongside pricing matrix', async () => {
+    const kv = new MockKV();
+    await kv.put(
+      'products:catalog',
+      JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
+    );
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
+
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+    // anonymous qualifications with a promotion + coupon voucher
+    spy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          redeemables: {
+            data: [
+              {
+                id: 'promo_1',
+                object: 'promotion_tier',
+                result: { discount: { type: 'PERCENT', percent_off: 10 } },
+                campaign_name: 'Promo',
+              },
+              {
+                id: 'voucher_1',
+                object: 'voucher',
+                campaign_type: 'DISCOUNT_COUPONS',
+                voucher: { code: 'SAVE10' },
+                result: { discount: { type: 'AMOUNT', amount_off: 1000 } },
+                campaign_name: 'Coupon Campaign',
+              },
+            ],
+          },
+        }),
+      ),
+    );
+    // member qualifications
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+
+    await revalidateAllSegments(env);
+
+    const offers = await kv.get('offers:anonymous', 'json');
+    expect(offers).toBeTruthy();
+    expect(offers.promotions.length).toBe(1);
+    expect(offers.promotions[0].id).toBe('promo_1');
+    expect(offers.coupons.length).toBe(1);
+    expect(offers.coupons[0].code).toBe('SAVE10');
+
+    // member offers should be empty
+    const memberOffers = await kv.get('offers:member', 'json');
+    expect(memberOffers).toBeTruthy();
+    expect(memberOffers.coupons).toEqual([]);
+  });
+
   it('handles qualification failure for individual segments', async () => {
     const kv = new MockKV();
     await kv.put(

@@ -1,8 +1,9 @@
 import { sanitizeProductIds, sanitizeString, corsHeaders } from './security';
-import { getPricing, updateProducts, getSegments, getMeta } from './store';
+import { getPricing, updateProducts, getSegments, getMeta, getOffers } from './store';
 import { fetchValidations, fetchQualifications } from './voucherify-client';
+import { setupCollections, getCMSStatus, syncPricingToCMS } from './cms';
 import { KV_KEYS } from './config';
-import type { Env, PricingEntry, PricingResponse } from './types';
+import type { Env, PricingEntry, PricingResponse, OffersResponse } from './types';
 
 export async function handlePrices(
   request: Request,
@@ -170,6 +171,87 @@ export async function handleHealth(
     request,
     env,
   );
+}
+
+export async function handleCMSSetup(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  try {
+    const ids = await setupCollections(env);
+    return jsonResponse(ids, 200, request, env);
+  } catch (error: any) {
+    return jsonResponse(
+      { error: error.message || 'CMS setup failed' },
+      502,
+      request,
+      env,
+    );
+  }
+}
+
+export async function handleCMSStatus(
+  request: Request,
+  env: Env,
+): Promise<Response> {
+  try {
+    const status = await getCMSStatus(env);
+    return jsonResponse(status, 200, request, env);
+  } catch (error: any) {
+    return jsonResponse(
+      { error: error.message || 'CMS status check failed' },
+      502,
+      request,
+      env,
+    );
+  }
+}
+
+export async function handleCMSSync(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  // Fire-and-forget: sync in background, respond immediately
+  ctx.waitUntil(
+    syncPricingToCMS(env).catch((err) =>
+      console.error('[pp-pricing-worker] CMS sync failed:', err),
+    ),
+  );
+
+  return jsonResponse({ status: 'accepted', message: 'CMS sync started' }, 202, request, env);
+}
+
+export async function handleOffers(
+  request: Request,
+  env: Env,
+  segment: string,
+): Promise<Response> {
+  const sanitizedSegment = sanitizeString(segment, 128);
+  if (!sanitizedSegment) {
+    return jsonResponse(
+      { error: 'Missing segment parameter' },
+      400,
+      request,
+      env,
+    );
+  }
+
+  const offers = await getOffers(env.PRICING_KV, sanitizedSegment);
+
+  const body: OffersResponse = {
+    segment: sanitizedSegment,
+    offers: offers || {
+      coupons: [],
+      promotions: [],
+      loyalty: [],
+      referrals: [],
+      gifts: [],
+    },
+    timestamp: Date.now(),
+  };
+
+  return jsonResponse(body, 200, request, env);
 }
 
 function jsonResponse(

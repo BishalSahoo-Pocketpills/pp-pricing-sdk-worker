@@ -5,6 +5,9 @@ export const KV_KEYS = {
   PRODUCTS_CATALOG: 'products:catalog',
   META_LAST_REVALIDATION: 'meta:last-revalidation',
   META_WEBHOOK_COUNT: 'meta:webhook-count',
+  CMS_COLLECTION_IDS: 'cms:collection-ids',
+  META_LAST_CMS_SYNC: 'meta:last-cms-sync',
+  OFFERS: 'offers:',
 } as const;
 
 // Default segments (always present)
@@ -41,6 +44,17 @@ export const RETRY = {
   BASE_DELAY_MS: 500,
 } as const;
 
+// Webflow CMS configuration
+export const WEBFLOW = {
+  API_BASE: 'https://api.webflow.com/v2',
+  BULK_LIMIT: 100,
+  COLLECTIONS: {
+    TREATMENTS: { displayName: 'Treatments', singularName: 'Treatment', slug: 'treatments' },
+    PRICING: { displayName: 'Pricing', singularName: 'Pricing', slug: 'pricing' },
+    SEGMENTS: { displayName: 'Segments', singularName: 'Segment', slug: 'segments' },
+  },
+} as const;
+
 // API paths
 export const PATHS = {
   WEBHOOK: '/webhook/v1/voucherify',
@@ -49,4 +63,8 @@ export const PATHS = {
   QUALIFY: '/api/qualify',
   SEGMENTS: '/api/segments',
   HEALTH: '/health',
+  CMS_SETUP: '/api/cms/setup',
+  CMS_STATUS: '/api/cms/status',
+  CMS_SYNC: '/api/cms/sync',
+  OFFERS: '/api/offers/',
 } as const;

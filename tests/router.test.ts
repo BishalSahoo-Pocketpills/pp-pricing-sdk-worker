@@ -104,4 +104,19 @@ describe('router', () => {
     const res = await router(req, env, makeCtx());
     expect(res.status).toBe(404);
   });
+
+  it('routes GET /api/offers/:segment', async () => {
+    const req = new Request('https://worker.test/api/offers/anonymous');
+    const res = await router(req, env, makeCtx());
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.segment).toBe('anonymous');
+    expect(data.offers).toBeDefined();
+  });
+
+  it('returns 400 for /api/offers/ without segment', async () => {
+    const req = new Request('https://worker.test/api/offers/');
+    const res = await router(req, env, makeCtx());
+    expect(res.status).toBe(400);
+  });
 });
