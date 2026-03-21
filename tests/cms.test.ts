@@ -640,12 +640,12 @@ describe('CMS module', () => {
       expect(fieldData['campaign-name']).toBe('Loyalty Program');
     });
 
-    it('handles discount amount division correctly', () => {
+    it('handles discount amount correctly (already in dollars from buildOfferDiscount)', () => {
       const entry = makeOfferEntry({
-        discount: { type: 'AMOUNT', amountOff: 1500, label: '$15 OFF' },
+        discount: { type: 'AMOUNT', amountOff: 15, label: '$15 OFF' },
       });
       const fieldData = buildOfferFieldData(entry, 'anonymous', 500);
-      expect(fieldData['discount-amount-off']).toBe(15); // 1500 / 100
+      expect(fieldData['discount-amount-off']).toBe(15);
       expect(fieldData['discount-percent-off']).toBe(0);
     });
   });

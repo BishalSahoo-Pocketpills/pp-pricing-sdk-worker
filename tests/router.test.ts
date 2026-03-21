@@ -67,17 +67,27 @@ describe('router', () => {
     expect(res.status).toBe(200);
   });
 
-  it('routes POST /api/qualify', async () => {
+  it('routes POST /api/qualify with admin token', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ redeemables: { data: [] } })),
     );
     const req = new Request('https://worker.test/api/qualify', {
       method: 'POST',
       body: JSON.stringify({}),
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-admin-token' },
     });
     const res = await router(req, env, makeCtx());
     expect(res.status).toBe(200);
+  });
+
+  it('rejects POST /api/qualify without admin token', async () => {
+    const req = new Request('https://worker.test/api/qualify', {
+      method: 'POST',
+      body: JSON.stringify({}),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const res = await router(req, env, makeCtx());
+    expect(res.status).toBe(401);
   });
 
   it('routes POST /webhook/v1/voucherify', async () => {

@@ -88,12 +88,20 @@ export function verifyAdminToken(request: Request, expectedToken: string): boole
 
 const MAX_BODY_SIZE = 512 * 1024; // 512 KB
 
-export function checkContentLength(request: Request): string | null {
+export async function readBodyWithLimit(request: Request): Promise<{ body: string; error?: string }> {
+  // Check Content-Length header first (fast reject for honest clients)
   const contentLength = request.headers.get('Content-Length');
   if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
-    return 'Request body too large';
+    return { body: '', error: 'Request body too large' };
   }
-  return null;
+
+  // Read the actual body and enforce size limit (handles chunked/spoofed headers)
+  const text = await request.text();
+  if (text.length > MAX_BODY_SIZE) {
+    return { body: '', error: 'Request body too large' };
+  }
+
+  return { body: text };
 }
 
 export function sanitizeString(input: string, maxLength = 256): string {

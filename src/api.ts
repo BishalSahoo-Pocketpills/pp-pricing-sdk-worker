@@ -1,4 +1,4 @@
-import { sanitizeProductIds, sanitizeString, corsHeaders, checkContentLength } from '@/security';
+import { sanitizeProductIds, sanitizeString, corsHeaders, readBodyWithLimit } from '@/security';
 import { getPricing, updateProducts, getSegments, getMeta, getOffers } from '@/store';
 import { fetchValidations, fetchQualifications } from '@/voucherify-client';
 import { setupCollections, getCMSStatus, performCMSSync } from '@/cms';
@@ -86,14 +86,14 @@ export async function handleValidate(
   request: Request,
   env: Env,
 ): Promise<Response> {
-  const sizeError = checkContentLength(request);
+  const { body: rawBody, error: sizeError } = await readBodyWithLimit(request);
   if (sizeError) {
     return jsonResponse({ error: sizeError }, 413, request, env);
   }
 
   let body: any;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
     return jsonResponse({ error: 'Invalid JSON' }, 400, request, env);
   }
@@ -110,6 +110,9 @@ export async function handleValidate(
   } else if (body.code) {
     body.code = sanitizeString(body.code, 64);
   }
+
+  // Strip fields that could be used for data enumeration
+  body = sanitizeVoucherifyBody(body);
 
   try {
     const result = await fetchValidations(env, body);
@@ -128,17 +131,20 @@ export async function handleQualify(
   request: Request,
   env: Env,
 ): Promise<Response> {
-  const sizeError = checkContentLength(request);
+  const { body: rawBody, error: sizeError } = await readBodyWithLimit(request);
   if (sizeError) {
     return jsonResponse({ error: sizeError }, 413, request, env);
   }
 
   let body: any;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
     return jsonResponse({ error: 'Invalid JSON' }, 400, request, env);
   }
+
+  // Strip fields that could be used for data enumeration
+  body = sanitizeVoucherifyBody(body);
 
   try {
     const result = await fetchQualifications(env, body);
@@ -227,14 +233,14 @@ export async function handleCMSSync(
     performCMSSync(env)
       .then((result) =>
         env.PRICING_KV.put(
-          'meta:last-cms-sync-result',
+          KV_KEYS.META_LAST_CMS_SYNC_RESULT,
           JSON.stringify({ status: 'ok', ...result, timestamp: new Date().toISOString() }),
         ),
       )
       .catch((err) => {
         console.error('[pp-pricing-worker] CMS sync failed:', err);
         env.PRICING_KV.put(
-          'meta:last-cms-sync-result',
+          KV_KEYS.META_LAST_CMS_SYNC_RESULT,
           JSON.stringify({ status: 'error', error: (err as Error).message, timestamp: new Date().toISOString() }),
         ).catch(() => {});
       }),
@@ -273,6 +279,33 @@ export async function handleOffers(
   };
 
   return jsonResponse(body, 200, request, env);
+}
+
+const ALLOWED_VOUCHERIFY_KEYS = new Set([
+  'redeemables', 'customer', 'order', 'code', 'scenario', 'options', 'metadata',
+]);
+
+function sanitizeVoucherifyBody(body: any): any {
+  if (!body || typeof body !== 'object') return body;
+
+  // Strip unknown top-level keys
+  const sanitized: Record<string, any> = {};
+  for (const key of Object.keys(body)) {
+    if (ALLOWED_VOUCHERIFY_KEYS.has(key)) {
+      sanitized[key] = body[key];
+    }
+  }
+
+  // Restrict options to safe fields (prevent data enumeration via expand)
+  if (sanitized.options && typeof sanitized.options === 'object') {
+    const { limit, sorting_rule } = sanitized.options;
+    sanitized.options = {
+      ...(limit !== undefined && { limit: Math.min(Number(limit) || 50, 50) }),
+      ...(sorting_rule && { sorting_rule }),
+    };
+  }
+
+  return sanitized;
 }
 
 function jsonResponse(

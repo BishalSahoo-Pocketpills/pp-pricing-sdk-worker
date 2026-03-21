@@ -8,6 +8,8 @@ export const KV_KEYS = {
   CMS_COLLECTION_IDS: 'cms:collection-ids',
   META_LAST_CMS_SYNC: 'meta:last-cms-sync',
   CMS_SYNC_LOCK: 'cms:sync-lock',
+  META_LAST_CMS_SYNC_RESULT: 'meta:last-cms-sync-result',
+  REVALIDATION_LOCK: 'revalidation:lock',
   OFFERS: 'offers:',
 } as const;
 

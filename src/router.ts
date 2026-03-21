@@ -56,8 +56,11 @@ export async function router(
     return handleValidate(request, env);
   }
 
-  // Qualify
+  // Qualify — requires admin token (internal use only)
   if (method === 'POST' && pathname === PATHS.QUALIFY) {
+    if (!verifyAdminToken(request, env.ADMIN_API_TOKEN)) {
+      return new Response('Unauthorized', { status: 401 });
+    }
     return handleQualify(request, env);
   }
 

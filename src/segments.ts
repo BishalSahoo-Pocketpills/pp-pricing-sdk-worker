@@ -9,8 +9,9 @@ import type { Env, SegmentDefinition } from '@/types';
 
 export function parseValidationConditions(
   conditions: any,
+  depth = 0,
 ): Record<string, any> | null {
-  if (!conditions?.rules) return null;
+  if (depth > 10 || !conditions?.rules) return null;
 
   const metadata: Record<string, any> = {};
 
@@ -28,7 +29,7 @@ export function parseValidationConditions(
 
     // Recurse into nested rules
     if (rule.rules) {
-      const nested = parseValidationConditions(rule);
+      const nested = parseValidationConditions(rule, depth + 1);
       if (nested) {
         Object.assign(metadata, nested);
       }

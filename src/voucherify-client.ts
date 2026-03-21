@@ -27,8 +27,16 @@ async function fetchWithRetry(
         return response.json();
       }
 
-      // Don't retry client errors (4xx)
-      if (response.status >= 400 && response.status < 500) {
+      // Retry on 429 rate limit
+      if (response.status === 429) {
+        const retryAfter = parseInt(response.headers.get('Retry-After') || '0', 10);
+        lastError = new Error('Voucherify rate limited (429)');
+        if (attempt < retries && retryAfter > 0) {
+          await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
+          continue;
+        }
+      } else if (response.status >= 400 && response.status < 500) {
+        // Don't retry other client errors (4xx)
         const body = await response.text();
         throw new Error(
           `Voucherify API error ${response.status}: ${body}`,
@@ -36,11 +44,14 @@ async function fetchWithRetry(
       }
 
       // Server error — retry
-      lastError = new Error(`Voucherify API error ${response.status}`);
+      if (!lastError) {
+        lastError = new Error(`Voucherify API error ${response.status}`);
+      }
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith('Voucherify API error 4')) {
+        throw error;
+      }
       lastError = error as Error;
-      // Don't retry if it was a 4xx we threw above
-      if (lastError.message.includes('API error 4')) throw lastError;
     }
 
     if (attempt < retries) {

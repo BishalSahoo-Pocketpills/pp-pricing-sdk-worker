@@ -10,7 +10,7 @@ import { buildOffersBundle } from '@/offers';
 import { discoverSegments } from '@/segments';
 import { setSegments } from '@/store';
 import { performCMSSync } from '@/cms';
-import type { Env } from '@/types';
+import type { Env, ProductEntry } from '@/types';
 
 export async function handleWebhook(
   request: Request,
@@ -57,7 +57,30 @@ export async function processWebhook(
   await revalidateAllSegments(env);
 }
 
+const REVALIDATION_LOCK_TTL = 30; // seconds
+const SEGMENT_BATCH_SIZE = 5;
+
 export async function revalidateAllSegments(env: Env): Promise<void> {
+  // Debounce: skip if another revalidation is already in progress
+  const lockKey = KV_KEYS.REVALIDATION_LOCK;
+  const existing = await env.PRICING_KV.get(lockKey);
+  if (existing) {
+    console.warn('[pp-pricing-worker] Revalidation already in progress, skipping');
+    return;
+  }
+
+  await env.PRICING_KV.put(lockKey, String(Date.now()), {
+    expirationTtl: REVALIDATION_LOCK_TTL,
+  });
+
+  try {
+    await revalidateAllSegmentsInner(env);
+  } finally {
+    await env.PRICING_KV.delete(lockKey);
+  }
+}
+
+async function revalidateAllSegmentsInner(env: Env): Promise<void> {
   // Re-discover segments (campaign changes may add new ones)
   const segments = await discoverSegments(env);
   await setSegments(env.PRICING_KV, segments);
@@ -69,54 +92,15 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
     return;
   }
 
-  // Qualify each segment in parallel
-  const results = await Promise.all(
-    segments.map(async (segment) => {
-      try {
-        const orderItems = Object.entries(products).map(
-          ([id, product]) => ({
-            source_id: id,
-            related_object: 'product',
-            quantity: 1,
-            price: product.basePrice * 100, // cents
-          }),
-        );
-
-        const response = await fetchQualifications(env, {
-          customer: segment.customerContext,
-          order: { items: orderItems },
-          scenario: 'ALL',
-          options: {
-            expand: ['redeemable'],
-            limit: 50,
-            sorting_rule: 'BEST_DEAL',
-          },
-        });
-
-        const redeemables = parseQualificationResponse(response);
-
-        // Warn if response was truncated (more results available than returned)
-        const total = response?.qualifications?.redeemables?.total
-          ?? response?.redeemables?.total
-          ?? redeemables.length;
-        if (total > redeemables.length) {
-          console.warn(
-            `[pp-pricing-worker] Qualification response truncated for segment "${segment.key}": got ${redeemables.length} of ${total} redeemables`,
-          );
-        }
-
-        const matrix = buildPricingMatrix(products, redeemables, env);
-        const offers = buildOffersBundle(redeemables, env);
-        return { segment: segment.key, matrix, offers };
-      } catch (error) {
-        console.error(
-          `[pp-pricing-worker] Failed to qualify segment "${segment.key}":`,
-          error,
-        );
-        return null;
-      }
-    }),
-  );
+  // Qualify segments in batches to avoid Voucherify rate limiting
+  const results: Array<{ segment: string; matrix: any; offers: any } | null> = [];
+  for (let i = 0; i < segments.length; i += SEGMENT_BATCH_SIZE) {
+    const batch = segments.slice(i, i + SEGMENT_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map((segment) => qualifySegment(segment, products, env)),
+    );
+    results.push(...batchResults);
+  }
 
   // Write pricing matrices and offers to KV in parallel
   const writes: Promise<void>[] = [];
@@ -141,5 +125,55 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
     } catch (error) {
       console.error('[pp-pricing-worker] CMS sync failed:', error);
     }
+  }
+}
+
+async function qualifySegment(
+  segment: { key: string; customerContext: Record<string, any> },
+  products: Record<string, ProductEntry>,
+  env: Env,
+): Promise<{ segment: string; matrix: any; offers: any } | null> {
+  try {
+    const orderItems = Object.entries(products).map(
+      ([id, product]) => ({
+        source_id: id,
+        related_object: 'product',
+        quantity: 1,
+        price: product.basePrice * 100, // cents
+      }),
+    );
+
+    const response = await fetchQualifications(env, {
+      customer: segment.customerContext,
+      order: { items: orderItems },
+      scenario: 'ALL',
+      options: {
+        expand: ['redeemable'],
+        limit: 50,
+        sorting_rule: 'BEST_DEAL',
+      },
+    });
+
+    const redeemables = parseQualificationResponse(response);
+
+    // Warn if response was truncated (more results available than returned)
+    const total = response?.qualifications?.redeemables?.total
+      ?? response?.redeemables?.total
+      ?? redeemables.length;
+    if (total > redeemables.length) {
+      console.warn(
+        `[pp-pricing-worker] Qualification response truncated for segment "${segment.key}": got ${redeemables.length} of ${total} redeemables`,
+      );
+    }
+
+    const matrix = buildPricingMatrix(products, redeemables, env);
+    const offers = buildOffersBundle(redeemables, env);
+    return { segment: segment.key, matrix, offers };
+  } catch (error) {
+    console.error(
+      `[pp-pricing-worker] Failed to qualify segment "${segment.key}":`,
+      error,
+    );
+    return null;
   }
 }
