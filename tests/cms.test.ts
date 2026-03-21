@@ -660,13 +660,11 @@ describe('CMS module', () => {
       await kv.put(KV_KEYS.CMS_COLLECTION_IDS, JSON.stringify(collectionIds));
       await kv.put(KV_KEYS.PRODUCTS_CATALOG, JSON.stringify(makeProducts()));
 
-      mockedListItems
-        .mockResolvedValueOnce([]) // existing items
-        .mockResolvedValueOnce([ // after create
-          { id: 't1', fieldData: { slug: 'hair-loss' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-          { id: 't2', fieldData: { slug: 'weight-loss' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-        ]);
-      mockedCreateLiveItems.mockResolvedValueOnce([]);
+      mockedListItems.mockResolvedValueOnce([]); // existing items
+      mockedCreateLiveItems.mockResolvedValueOnce([
+        { id: 't1', fieldData: { slug: 'hair-loss' } },
+        { id: 't2', fieldData: { slug: 'weight-loss' } },
+      ]);
       mockedPublishItems.mockResolvedValueOnce(undefined);
 
       await syncTreatmentsToCMS(env);
@@ -683,13 +681,9 @@ describe('CMS module', () => {
       await kv.put(KV_KEYS.CMS_COLLECTION_IDS, JSON.stringify(collectionIds));
       await kv.put(KV_KEYS.PRODUCTS_CATALOG, JSON.stringify({ 'hair-loss': { basePrice: 60, lastSeen: Date.now() } }));
 
-      mockedListItems
-        .mockResolvedValueOnce([
-          { id: 'existing_t1', fieldData: { slug: 'hair-loss' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-        ])
-        .mockResolvedValueOnce([
-          { id: 'existing_t1', fieldData: { slug: 'hair-loss' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-        ]);
+      mockedListItems.mockResolvedValueOnce([
+        { id: 'existing_t1', fieldData: { slug: 'hair-loss' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
+      ]);
       mockedUpdateLiveItems.mockResolvedValueOnce(undefined);
       mockedPublishItems.mockResolvedValueOnce(undefined);
 
@@ -725,13 +719,11 @@ describe('CMS module', () => {
       await kv.put(KV_KEYS.CMS_COLLECTION_IDS, JSON.stringify(collectionIds));
       await kv.put(KV_KEYS.SEGMENTS_REGISTRY, JSON.stringify(makeSegments()));
 
-      mockedListItems
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([
-          { id: 's1', fieldData: { slug: 'anonymous' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-          { id: 's2', fieldData: { slug: 'member' }, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' },
-        ]);
-      mockedCreateLiveItems.mockResolvedValueOnce([]);
+      mockedListItems.mockResolvedValueOnce([]);
+      mockedCreateLiveItems.mockResolvedValueOnce([
+        { id: 's1', fieldData: { slug: 'anonymous' } },
+        { id: 's2', fieldData: { slug: 'member' } },
+      ]);
       mockedPublishItems.mockResolvedValueOnce(undefined);
 
       await syncSegmentsToCMS(env);

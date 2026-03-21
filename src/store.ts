@@ -1,4 +1,4 @@
-import { KV_KEYS } from '@/config';
+import { KV_KEYS, CATALOG } from '@/config';
 import type { PricingEntry, SegmentDefinition, ProductEntry, OffersBundle } from '@/types';
 
 export async function getPricing(
@@ -52,8 +52,26 @@ export async function updateProducts(
   const existing = await getProducts(kv);
   const now = Date.now();
 
+  // Prune stale products not seen in STALE_THRESHOLD_MS
+  for (const [id, product] of Object.entries(existing)) {
+    if (now - product.lastSeen > CATALOG.STALE_THRESHOLD_MS) {
+      delete existing[id];
+    }
+  }
+
   for (const [id, basePrice] of Object.entries(incoming)) {
     existing[id] = { basePrice, lastSeen: now };
+  }
+
+  // Hard cap to prevent KV value size overflow
+  const ids = Object.keys(existing);
+  if (ids.length > CATALOG.MAX_PRODUCTS) {
+    const sorted = ids.sort(
+      (a, b) => existing[a].lastSeen - existing[b].lastSeen,
+    );
+    for (let i = 0; i < sorted.length - CATALOG.MAX_PRODUCTS; i++) {
+      delete existing[sorted[i]];
+    }
   }
 
   await setProducts(kv, existing);

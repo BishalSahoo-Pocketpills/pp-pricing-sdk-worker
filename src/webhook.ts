@@ -17,7 +17,7 @@ export async function handleWebhook(
   env: Env,
   ctx: ExecutionContext,
 ): Promise<Response> {
-  const valid = await verifyWebhookSignature(
+  const { valid, body: rawBody } = await verifyWebhookSignature(
     request,
     env.VOUCHERIFY_WEBHOOK_SECRET,
   );
@@ -27,7 +27,7 @@ export async function handleWebhook(
 
   let payload: any;
   try {
-    payload = await request.json();
+    payload = JSON.parse(rawBody);
   } catch {
     return new Response('Bad Request', { status: 400 });
   }
@@ -94,6 +94,17 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
         });
 
         const redeemables = parseQualificationResponse(response);
+
+        // Warn if response was truncated (more results available than returned)
+        const total = response?.qualifications?.redeemables?.total
+          ?? response?.redeemables?.total
+          ?? redeemables.length;
+        if (total > redeemables.length) {
+          console.warn(
+            `[pp-pricing-worker] Qualification response truncated for segment "${segment.key}": got ${redeemables.length} of ${total} redeemables`,
+          );
+        }
+
         const matrix = buildPricingMatrix(products, redeemables, env);
         const offers = buildOffersBundle(redeemables, env);
         return { segment: segment.key, matrix, offers };

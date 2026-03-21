@@ -492,16 +492,17 @@ export async function syncTreatmentsToCMS(env: Env): Promise<void> {
     }
   }
 
+  const idsToPublish: string[] = [];
+
   if (toCreate.length > 0) {
-    await createLiveItems(env, ids.treatments, toCreate);
+    const created = await createLiveItems(env, ids.treatments, toCreate);
+    idsToPublish.push(...created.map((item) => item.id));
   }
   if (toUpdate.length > 0) {
     await updateLiveItems(env, ids.treatments, toUpdate);
+    idsToPublish.push(...toUpdate.map((item) => item.id));
   }
 
-  // Publish all
-  const allItems = await listItems(env, ids.treatments);
-  const idsToPublish = allItems.map((item) => item.id);
   if (idsToPublish.length > 0) {
     await publishItems(env, ids.treatments, idsToPublish);
   }
@@ -543,16 +544,17 @@ export async function syncSegmentsToCMS(env: Env): Promise<void> {
     }
   }
 
+  const idsToPublish: string[] = [];
+
   if (toCreate.length > 0) {
-    await createLiveItems(env, ids.segments, toCreate);
+    const created = await createLiveItems(env, ids.segments, toCreate);
+    idsToPublish.push(...created.map((item) => item.id));
   }
   if (toUpdate.length > 0) {
     await updateLiveItems(env, ids.segments, toUpdate);
+    idsToPublish.push(...toUpdate.map((item) => item.id));
   }
 
-  // Publish all
-  const allItems = await listItems(env, ids.segments);
-  const idsToPublish = allItems.map((item) => item.id);
   if (idsToPublish.length > 0) {
     await publishItems(env, ids.segments, idsToPublish);
   }
@@ -579,14 +581,26 @@ export async function performCMSSync(
     }
   }
 
-  await env.PRICING_KV.put(lockKey, String(Date.now()));
+  // Use expirationTtl for auto-cleanup — KV put is not atomic, but TTL
+  // ensures stale locks are cleaned even if the worker crashes
+  await env.PRICING_KV.put(lockKey, String(Date.now()), {
+    expirationTtl: 300, // 5 minutes
+  });
 
   try {
+    // Sync all collection types
+    await syncTreatmentsToCMS(env);
+    await syncSegmentsToCMS(env);
     const pricing = await syncPricingToCMS(env);
     const offers = await syncOffersToCMS(env);
-    return { pricing, offers };
-  } finally {
+
+    // Only delete lock on success — on failure, TTL handles cleanup
+    // to prevent rapid retry storms
     await env.PRICING_KV.delete(lockKey);
+    return { pricing, offers };
+  } catch (error) {
+    // Lock remains with TTL — prevents immediate retry
+    throw error;
   }
 }
 

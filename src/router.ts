@@ -80,21 +80,23 @@ export async function router(
     if (!verifyAdminToken(request, env.ADMIN_API_TOKEN)) {
       return new Response('Unauthorized', { status: 401 });
     }
-  }
 
-  // CMS Setup
-  if (method === 'POST' && pathname === PATHS.CMS_SETUP) {
-    return handleCMSSetup(request, env);
-  }
+    // CMS Setup
+    if (method === 'POST' && pathname === PATHS.CMS_SETUP) {
+      return handleCMSSetup(request, env);
+    }
 
-  // CMS Status
-  if (method === 'GET' && pathname === PATHS.CMS_STATUS) {
-    return handleCMSStatus(request, env);
-  }
+    // CMS Status
+    if (method === 'GET' && pathname === PATHS.CMS_STATUS) {
+      return handleCMSStatus(request, env);
+    }
 
-  // CMS Sync
-  if (method === 'POST' && pathname === PATHS.CMS_SYNC) {
-    return handleCMSSync(request, env, ctx);
+    // CMS Sync
+    if (method === 'POST' && pathname === PATHS.CMS_SYNC) {
+      return handleCMSSync(request, env, ctx);
+    }
+
+    return new Response('Method Not Allowed', { status: 405 });
   }
 
   return new Response('Not Found', { status: 404 });

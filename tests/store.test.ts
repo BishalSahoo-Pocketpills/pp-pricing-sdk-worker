@@ -83,7 +83,7 @@ describe('product operations', () => {
 
   it('updateProducts merges into existing catalog', async () => {
     await setProducts(kvNs(), {
-      'prod-1': { basePrice: 100, lastSeen: 1000 },
+      'prod-1': { basePrice: 100, lastSeen: Date.now() },
     });
     const result = await updateProducts(kvNs(), { 'prod-2': 200 });
     expect(result['prod-1'].basePrice).toBe(100);
@@ -93,11 +93,22 @@ describe('product operations', () => {
 
   it('updateProducts overwrites existing product base price', async () => {
     await setProducts(kvNs(), {
-      'prod-1': { basePrice: 100, lastSeen: 1000 },
+      'prod-1': { basePrice: 100, lastSeen: Date.now() },
     });
     const result = await updateProducts(kvNs(), { 'prod-1': 150 });
     expect(result['prod-1'].basePrice).toBe(150);
-    expect(result['prod-1'].lastSeen).toBeGreaterThan(1000);
+  });
+
+  it('updateProducts evicts stale products', async () => {
+    const thirtyOneDaysAgo = Date.now() - 31 * 24 * 60 * 60 * 1000;
+    await setProducts(kvNs(), {
+      'stale-prod': { basePrice: 50, lastSeen: thirtyOneDaysAgo },
+      'fresh-prod': { basePrice: 75, lastSeen: Date.now() },
+    });
+    const result = await updateProducts(kvNs(), { 'new-prod': 100 });
+    expect(result['stale-prod']).toBeUndefined();
+    expect(result['fresh-prod'].basePrice).toBe(75);
+    expect(result['new-prod'].basePrice).toBe(100);
   });
 });
 

@@ -149,6 +149,7 @@ export interface CMSCollectionIds {
   treatments: string;
   pricing: string;
   segments: string;
+  offers: string;
 }
 
 export interface CMSSyncResult {
@@ -162,7 +163,7 @@ export interface CMSStatus {
   enabled: boolean;
   collections: CMSCollectionIds | null;
   lastSync: string | null;
-  itemCounts: { treatments: number; pricing: number; segments: number } | null;
+  itemCounts: { treatments: number; pricing: number; segments: number; offers: number } | null;
 }
 
 // --- Worker env binding ---
@@ -180,4 +181,5 @@ export interface Env {
   WEBFLOW_API_TOKEN: string;
   WEBFLOW_SITE_ID: string;
   CMS_SYNC_ENABLED: string;
+  ADMIN_API_TOKEN: string;
 }

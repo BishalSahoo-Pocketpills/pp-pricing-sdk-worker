@@ -50,51 +50,72 @@ export async function discoverSegments(
     const campaignsResponse = await listCampaigns(env, {
       'filters[campaign_type]': 'PROMOTION',
       'filters[active]': 'true',
+      limit: '100',
     });
 
     const campaigns = campaignsResponse?.campaigns || [];
 
-    for (const campaign of campaigns) {
-      if (!campaign.id) continue;
-
-      try {
-        const tiersResponse = await listPromotionTiers(env, campaign.id);
-        const tiers = tiersResponse?.tiers || [];
-
-        for (const tier of tiers) {
-          const ruleId =
-            tier.validation_rule_assignments?.data?.[0]?.rule_id;
-          if (!ruleId) continue;
-
+    // Fetch tiers for all campaigns in parallel
+    const tierResults = await Promise.all(
+      campaigns
+        .filter((c: any) => c.id)
+        .map(async (campaign: any) => {
           try {
-            const rule = await getValidationRules(env, ruleId);
-            const metadata = parseValidationConditions(rule?.rules);
-            if (!metadata) continue;
-
-            const key = Object.entries(metadata)
-              .sort(([a], [b]) => a.localeCompare(b))
-              .map(([k, v]) => `${k}:${v}`)
-              .join(',');
-
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              segments.push({
-                key,
-                label: `Auto: ${key}`,
-                customerContext: { metadata },
-                discoveredFrom: campaign.id,
-              });
-            }
-          } catch {
-            // Skip individual rule failures
+            const tiersResponse = await listPromotionTiers(env, campaign.id);
+            return { campaignId: campaign.id, tiers: tiersResponse?.tiers || [] };
+          } catch (error) {
+            console.warn(`[pp-pricing-worker] Failed to fetch tiers for campaign ${campaign.id}:`, error);
+            return { campaignId: campaign.id, tiers: [] };
           }
+        }),
+    );
+
+    // Collect all rule IDs with their campaign context
+    const ruleRequests: Array<{ ruleId: string; campaignId: string }> = [];
+    for (const { campaignId, tiers } of tierResults) {
+      for (const tier of tiers) {
+        const ruleId = tier.validation_rule_assignments?.data?.[0]?.rule_id;
+        if (ruleId) {
+          ruleRequests.push({ ruleId, campaignId });
         }
-      } catch {
-        // Skip individual campaign failures
       }
     }
-  } catch {
-    // Discovery failed entirely — return defaults
+
+    // Fetch all validation rules in parallel
+    const ruleResults = await Promise.all(
+      ruleRequests.map(async ({ ruleId, campaignId }) => {
+        try {
+          const rule = await getValidationRules(env, ruleId);
+          return { rule, campaignId };
+        } catch (error) {
+          console.warn(`[pp-pricing-worker] Failed to fetch rule ${ruleId}:`, error);
+          return null;
+        }
+      }),
+    );
+
+    for (const result of ruleResults) {
+      if (!result) continue;
+      const metadata = parseValidationConditions(result.rule?.rules);
+      if (!metadata) continue;
+
+      const key = Object.entries(metadata)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, v]) => `${k}:${v}`)
+        .join(',');
+
+      if (!seenKeys.has(key)) {
+        seenKeys.add(key);
+        segments.push({
+          key,
+          label: `Auto: ${key}`,
+          customerContext: { metadata },
+          discoveredFrom: result.campaignId,
+        });
+      }
+    }
+  } catch (error) {
+    console.warn('[pp-pricing-worker] Segment discovery failed:', error);
   }
 
   return segments;

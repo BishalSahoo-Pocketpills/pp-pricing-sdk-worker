@@ -45,34 +45,42 @@ describe('verifyWebhookSignature', () => {
   it('returns true for valid signature', async () => {
     const sig = await sign(body, secret);
     const req = makeRequest(body, sig);
-    expect(await verifyWebhookSignature(req, secret)).toBe(true);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(true);
+    expect(result.body).toBe(body);
   });
 
   it('returns false for invalid signature', async () => {
     const req = makeRequest(body, 'invalid-signature');
-    expect(await verifyWebhookSignature(req, secret)).toBe(false);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(false);
   });
 
   it('returns false when signature header is missing', async () => {
     const req = makeRequest(body);
-    expect(await verifyWebhookSignature(req, secret)).toBe(false);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(false);
+    expect(result.body).toBe('');
   });
 
   it('returns false for empty body', async () => {
     const sig = await sign('', secret);
     const req = makeRequest('', sig);
-    expect(await verifyWebhookSignature(req, secret)).toBe(false);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(false);
   });
 
   it('returns false for wrong secret', async () => {
     const sig = await sign(body, 'wrong-secret');
     const req = makeRequest(body, sig);
-    expect(await verifyWebhookSignature(req, secret)).toBe(false);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(false);
   });
 
   it('returns false for signature length mismatch', async () => {
     const req = makeRequest(body, 'short');
-    expect(await verifyWebhookSignature(req, secret)).toBe(false);
+    const result = await verifyWebhookSignature(req, secret);
+    expect(result.valid).toBe(false);
   });
 });
 
@@ -106,7 +114,7 @@ describe('corsHeaders', () => {
     expect(headers.get('Access-Control-Allow-Methods')).toBe(
       'GET, POST, OPTIONS',
     );
-    expect(headers.get('Access-Control-Allow-Headers')).toBe('Content-Type');
+    expect(headers.get('Access-Control-Allow-Headers')).toBe('Content-Type, Authorization');
     expect(headers.get('Access-Control-Max-Age')).toBe('86400');
   });
 });

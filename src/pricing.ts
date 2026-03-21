@@ -23,7 +23,7 @@ export function calculateDiscount(
       };
     case 'FIXED':
       return {
-        amount: basePrice - (discount.fixed_amount || 0) / 100,
+        amount: Math.max(0, basePrice - (discount.fixed_amount || 0) / 100),
         type: 'FIXED',
       };
     case 'UNIT':
@@ -100,7 +100,8 @@ export function formatPrice(amount: number, env: Env): string {
       style: 'currency',
       currency: env.PRICING_CURRENCY,
     }).format(amount);
-  } catch {
+  } catch (error) {
+    console.warn('[pp-pricing-worker] Intl.NumberFormat failed, using fallback:', error);
     return `${env.PRICING_CURRENCY_SYMBOL}${amount.toFixed(2)}`;
   }
 }

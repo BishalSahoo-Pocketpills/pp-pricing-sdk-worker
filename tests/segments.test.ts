@@ -136,16 +136,16 @@ describe('discoverSegments', () => {
         }),
       ),
     );
-    // Tiers for c1
+    // Tiers for c1 and c2 fetched in parallel
     spy.mockResolvedValueOnce(
       new Response(JSON.stringify(TIERS_RESPONSE)),
     );
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify(TIERS_RESPONSE)),
+    );
+    // Validation rules for both tiers fetched in parallel
     spy.mockResolvedValueOnce(
       new Response(JSON.stringify(VALIDATION_RULE_WITH_METADATA)),
-    );
-    // Tiers for c2 — same rule
-    spy.mockResolvedValueOnce(
-      new Response(JSON.stringify(TIERS_RESPONSE)),
     );
     spy.mockResolvedValueOnce(
       new Response(JSON.stringify(VALIDATION_RULE_WITH_METADATA)),

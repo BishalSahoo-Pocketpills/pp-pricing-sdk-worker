@@ -7,6 +7,7 @@ export const KV_KEYS = {
   META_WEBHOOK_COUNT: 'meta:webhook-count',
   CMS_COLLECTION_IDS: 'cms:collection-ids',
   META_LAST_CMS_SYNC: 'meta:last-cms-sync',
+  CMS_SYNC_LOCK: 'cms:sync-lock',
   OFFERS: 'offers:',
 } as const;
 
@@ -42,6 +43,13 @@ export const PRICING_EVENTS = [
 export const RETRY = {
   MAX_RETRIES: 3,
   BASE_DELAY_MS: 500,
+  FETCH_TIMEOUT_MS: 10_000,
+} as const;
+
+// Product catalog limits
+export const CATALOG = {
+  STALE_THRESHOLD_MS: 30 * 24 * 60 * 60 * 1000, // 30 days
+  MAX_PRODUCTS: 5_000,
 } as const;
 
 // Webflow CMS configuration
@@ -52,6 +60,7 @@ export const WEBFLOW = {
     TREATMENTS: { displayName: 'Treatments', singularName: 'Treatment', slug: 'treatments' },
     PRICING: { displayName: 'Pricing', singularName: 'Pricing', slug: 'pricing' },
     SEGMENTS: { displayName: 'Segments', singularName: 'Segment', slug: 'segments' },
+    OFFERS: { displayName: 'Offers', singularName: 'Offer', slug: 'offers' },
   },
 } as const;
 

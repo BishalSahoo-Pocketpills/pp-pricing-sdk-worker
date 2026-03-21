@@ -1,4 +1,4 @@
-import { sanitizeProductIds, sanitizeString, corsHeaders } from '@/security';
+import { sanitizeProductIds, sanitizeString, corsHeaders, checkContentLength } from '@/security';
 import { getPricing, updateProducts, getSegments, getMeta, getOffers } from '@/store';
 import { fetchValidations, fetchQualifications } from '@/voucherify-client';
 import { setupCollections, getCMSStatus, performCMSSync } from '@/cms';
@@ -86,6 +86,11 @@ export async function handleValidate(
   request: Request,
   env: Env,
 ): Promise<Response> {
+  const sizeError = checkContentLength(request);
+  if (sizeError) {
+    return jsonResponse({ error: sizeError }, 413, request, env);
+  }
+
   let body: any;
   try {
     body = await request.json();
@@ -123,6 +128,11 @@ export async function handleQualify(
   request: Request,
   env: Env,
 ): Promise<Response> {
+  const sizeError = checkContentLength(request);
+  if (sizeError) {
+    return jsonResponse({ error: sizeError }, 413, request, env);
+  }
+
   let body: any;
   try {
     body = await request.json();
@@ -214,9 +224,20 @@ export async function handleCMSSync(
 ): Promise<Response> {
   // Fire-and-forget: sync in background, respond immediately
   ctx.waitUntil(
-    performCMSSync(env).catch((err) =>
-      console.error('[pp-pricing-worker] CMS sync failed:', err),
-    ),
+    performCMSSync(env)
+      .then((result) =>
+        env.PRICING_KV.put(
+          'meta:last-cms-sync-result',
+          JSON.stringify({ status: 'ok', ...result, timestamp: new Date().toISOString() }),
+        ),
+      )
+      .catch((err) => {
+        console.error('[pp-pricing-worker] CMS sync failed:', err);
+        env.PRICING_KV.put(
+          'meta:last-cms-sync-result',
+          JSON.stringify({ status: 'error', error: (err as Error).message, timestamp: new Date().toISOString() }),
+        ).catch(() => {});
+      }),
   );
 
   return jsonResponse({ status: 'accepted', message: 'CMS sync started' }, 202, request, env);

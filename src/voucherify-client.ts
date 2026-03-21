@@ -18,7 +18,10 @@ async function fetchWithRetry(
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await fetch(url, init);
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(RETRY.FETCH_TIMEOUT_MS),
+      });
 
       if (response.ok) {
         return response.json();
