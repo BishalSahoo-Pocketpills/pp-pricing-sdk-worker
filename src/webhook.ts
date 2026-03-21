@@ -86,6 +86,11 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
           customer: segment.customerContext,
           order: { items: orderItems },
           scenario: 'ALL',
+          options: {
+            expand: ['redeemable'],
+            limit: 50,
+            sorting_rule: 'BEST_DEAL',
+          },
         });
 
         const redeemables = parseQualificationResponse(response);

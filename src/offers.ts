@@ -17,13 +17,22 @@ export function categorizeRedeemable(r: VoucherifyRedeemable): OfferCategory {
     return 'loyalty';
   }
 
-  // voucher — subcategorize
+  // Result-based detection (works for both "campaign" and "voucher" objects)
+  if (r.result?.loyalty_card) {
+    return 'loyalty';
+  }
+
   if (r.campaign_type === 'REFERRAL_PROGRAM') {
     return 'referral';
   }
 
   if (r.result?.gift) {
     return 'gift';
+  }
+
+  // campaign objects with a discount are auto-applied promotions
+  if (r.object === 'campaign' && r.result?.discount) {
+    return 'promotion';
   }
 
   return 'coupon';
@@ -98,7 +107,7 @@ function buildDescription(r: VoucherifyRedeemable, category: OfferCategory, env:
     }
   }
 
-  return r.campaign_name || r.campaign || '';
+  return r.name || r.campaign_name || r.banner || r.campaign || '';
 }
 
 export function buildOfferEntry(r: VoucherifyRedeemable, env: Env): OfferEntry {
@@ -107,7 +116,7 @@ export function buildOfferEntry(r: VoucherifyRedeemable, env: Env): OfferEntry {
   const entry: OfferEntry = {
     id: r.id,
     category,
-    title: r.campaign_name || r.campaign || '',
+    title: r.name || r.campaign_name || r.banner || r.campaign || '',
     description: buildDescription(r, category, env),
     applicableProductIds: extractApplicableProductIds(r),
   };
@@ -138,8 +147,8 @@ export function buildOfferEntry(r: VoucherifyRedeemable, env: Env): OfferEntry {
     };
   }
 
-  if (r.campaign_name) {
-    entry.campaignName = r.campaign_name;
+  if (r.campaign_name || r.name) {
+    entry.campaignName = r.campaign_name || r.name;
   }
 
   if (r.metadata) {

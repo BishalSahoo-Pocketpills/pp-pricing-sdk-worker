@@ -56,6 +56,42 @@ describe('categorizeRedeemable', () => {
     };
     expect(categorizeRedeemable(r)).toBe('coupon');
   });
+
+  it('categorizes campaign with result.loyalty_card as loyalty', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'camp_loyalty',
+      object: 'campaign',
+      result: { loyalty_card: { points: 0, balance: 350 } },
+    };
+    expect(categorizeRedeemable(r)).toBe('loyalty');
+  });
+
+  it('categorizes campaign with result.gift as gift', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'camp_gift',
+      object: 'campaign',
+      result: { gift: { amount: 5000, balance: 3500 } },
+    };
+    expect(categorizeRedeemable(r)).toBe('gift');
+  });
+
+  it('categorizes campaign with result.discount as promotion', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'camp_discount',
+      object: 'campaign',
+      result: { discount: { type: 'AMOUNT', amount_off: 1000 } },
+    };
+    expect(categorizeRedeemable(r)).toBe('promotion');
+  });
+
+  it('categorizes voucher with result.loyalty_card as loyalty', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'voucher_lc',
+      object: 'voucher',
+      result: { loyalty_card: { points: 100, balance: 50 } },
+    };
+    expect(categorizeRedeemable(r)).toBe('loyalty');
+  });
 });
 
 describe('buildOfferDiscount', () => {
@@ -222,6 +258,31 @@ describe('buildOfferEntry', () => {
     };
     const entry = buildOfferEntry(r, env);
     expect(entry.title).toBe('Fallback Campaign');
+  });
+
+  it('prefers name field for title (expand: redeemable)', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'test',
+      object: 'campaign',
+      name: 'Expanded Name',
+      campaign_name: 'Campaign Name',
+      campaign: 'Campaign',
+      result: { discount: { type: 'PERCENT', percent_off: 10 } },
+    };
+    const entry = buildOfferEntry(r, env);
+    expect(entry.title).toBe('Expanded Name');
+    expect(entry.campaignName).toBe('Campaign Name');
+  });
+
+  it('uses banner for title when name/campaign_name missing', () => {
+    const r: VoucherifyRedeemable = {
+      id: 'test',
+      object: 'promotion_tier',
+      banner: 'Save big today!',
+      result: { discount: { type: 'PERCENT', percent_off: 15 } },
+    };
+    const entry = buildOfferEntry(r, env);
+    expect(entry.title).toBe('Save big today!');
   });
 });
 

@@ -35,6 +35,7 @@ export interface PricingResponse {
 export interface VoucherifyRedeemable {
   id: string;
   object: string;
+  name?: string;
   campaign_type?: string;
   voucher?: { code?: string };
   metadata?: Record<string, any>;
@@ -50,6 +51,8 @@ export interface VoucherifyRedeemable {
   };
   campaign?: string;
   campaign_name?: string;
+  campaign_id?: string;
+  banner?: string;
   applicable_to?: {
     data?: Array<{
       object: string;
