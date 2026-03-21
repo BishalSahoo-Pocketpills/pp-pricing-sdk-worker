@@ -7,7 +7,7 @@ import {
   formatPrice,
   parseQualificationResponse,
   buildPricingMatrix,
-} from '../src/pricing';
+} from '@/pricing';
 import {
   mockEnv,
   REDEEMABLE_PERCENT,

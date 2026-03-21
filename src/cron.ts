@@ -1,6 +1,5 @@
-import { revalidateAllSegments } from './webhook';
-import { syncPricingToCMS } from './cms';
-import type { Env } from './types';
+import { revalidateAllSegments } from '@/webhook';
+import type { Env } from '@/types';
 
 export async function handleScheduled(env: Env): Promise<void> {
   console.log('[pp-pricing-worker] Scheduled revalidation started');

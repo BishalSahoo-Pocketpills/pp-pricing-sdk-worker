@@ -6,10 +6,11 @@ import {
   handleQualify,
   handleSegments,
   handleHealth,
-} from '../src/api';
+} from '@/api';
+import { KV_KEYS } from '@/config';
 import { MockKV } from './helpers/mock-kv';
 import { mockEnv } from './helpers/fixtures';
-import type { PricingEntry, OffersBundle } from '../src/types';
+import type { PricingEntry, OffersBundle } from '@/types';
 
 function makeRequest(
   url: string,
@@ -56,7 +57,7 @@ describe('handlePrices', () => {
         campaignName: 'Sale',
       },
     };
-    await kv.put('prices:anonymous', JSON.stringify(pricing));
+    await kv.put(KV_KEYS.PRICES + 'anonymous', JSON.stringify(pricing));
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
     const req = makeRequest(
       'https://worker.test/api/prices/anonymous?products=prod-1&basePrices=100',
@@ -91,7 +92,7 @@ describe('handlePrices', () => {
     // Wait for fire-and-forget to settle
     await new Promise((r) => setTimeout(r, 50));
 
-    const catalog = await kv.get('products:catalog', 'json');
+    const catalog = await kv.get(KV_KEYS.PRODUCTS_CATALOG, 'json');
     expect(catalog['new-prod'].basePrice).toBe(45);
   });
 
@@ -118,7 +119,7 @@ describe('handlePrices', () => {
         applicableVouchers: [],
       },
     };
-    await kv.put('prices:anonymous', JSON.stringify(pricing));
+    await kv.put(KV_KEYS.PRICES + 'anonymous', JSON.stringify(pricing));
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
     const req = makeRequest(
       'https://worker.test/api/prices/anonymous?products=prod-1,prod-2&basePrices=100,50',
@@ -146,7 +147,7 @@ describe('handlePrices', () => {
     );
     await handlePrices(req, env, 'anonymous');
     await new Promise((r) => setTimeout(r, 50));
-    const catalog = await kv.get('products:catalog', 'json');
+    const catalog = await kv.get(KV_KEYS.PRODUCTS_CATALOG, 'json');
     expect(catalog).toBeNull();
   });
 });
@@ -243,7 +244,7 @@ describe('handleSegments', () => {
   it('returns segment registry from KV', async () => {
     const kv = new MockKV();
     const segments = [{ key: 'test', label: 'Test', customerContext: {} }];
-    await kv.put('segments:registry', JSON.stringify(segments));
+    await kv.put(KV_KEYS.SEGMENTS_REGISTRY, JSON.stringify(segments));
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
     const req = makeRequest('https://worker.test/api/segments');
     const res = await handleSegments(req, env);
@@ -263,9 +264,9 @@ describe('handleSegments', () => {
 describe('handleHealth', () => {
   it('returns health status', async () => {
     const kv = new MockKV();
-    await kv.put('meta:last-revalidation', '2025-01-01T00:00:00Z');
+    await kv.put(KV_KEYS.META_LAST_REVALIDATION, '2025-01-01T00:00:00Z');
     await kv.put(
-      'segments:registry',
+      KV_KEYS.SEGMENTS_REGISTRY,
       JSON.stringify([{ key: 'a', label: 'A', customerContext: {} }]),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -319,7 +320,7 @@ describe('handleOffers', () => {
       referrals: [],
       gifts: [],
     };
-    await kv.put('offers:anonymous', JSON.stringify(offers));
+    await kv.put(KV_KEYS.OFFERS + 'anonymous', JSON.stringify(offers));
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
     const req = makeRequest('https://worker.test/api/offers/anonymous');
     const res = await handleOffers(req, env, 'anonymous');

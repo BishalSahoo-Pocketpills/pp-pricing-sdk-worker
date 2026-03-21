@@ -5,7 +5,7 @@ import {
   handleCorsPreflight,
   sanitizeString,
   sanitizeProductIds,
-} from '../src/security';
+} from '@/security';
 
 const encoder = new TextEncoder();
 

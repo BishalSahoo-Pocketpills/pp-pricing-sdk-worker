@@ -10,8 +10,8 @@ import {
   updateProducts,
   getMeta,
   setMeta,
-} from '../src/store';
-import type { PricingEntry, SegmentDefinition, ProductEntry } from '../src/types';
+} from '@/store';
+import type { PricingEntry, SegmentDefinition, ProductEntry } from '@/types';
 
 let kv: MockKV;
 

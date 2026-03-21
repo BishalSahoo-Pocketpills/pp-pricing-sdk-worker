@@ -1,5 +1,5 @@
-import { RETRY, WEBFLOW } from './config';
-import type { Env, WebflowCollection, WebflowField, WebflowItem } from './types';
+import { RETRY, WEBFLOW } from '@/config';
+import type { Env, WebflowCollection, WebflowField, WebflowItem } from '@/types';
 
 function authHeaders(env: Env): Record<string, string> {
   return {

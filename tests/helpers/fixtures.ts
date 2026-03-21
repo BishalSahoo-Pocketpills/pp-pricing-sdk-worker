@@ -1,4 +1,4 @@
-import type { Env, VoucherifyRedeemable } from '../../src/types';
+import type { Env, VoucherifyRedeemable } from '@/types';
 import { MockKV } from './mock-kv';
 
 export function mockEnv(overrides: Partial<Env> = {}): Env {
@@ -15,6 +15,7 @@ export function mockEnv(overrides: Partial<Env> = {}): Env {
     WEBFLOW_API_TOKEN: 'test-webflow-token',
     WEBFLOW_SITE_ID: 'test-site-id',
     CMS_SYNC_ENABLED: 'false',
+    ADMIN_API_TOKEN: 'test-admin-token',
     ...overrides,
   };
 }

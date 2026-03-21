@@ -3,7 +3,8 @@ import {
   parseValidationConditions,
   discoverSegments,
   getOrDiscoverSegments,
-} from '../src/segments';
+} from '@/segments';
+import { KV_KEYS } from '@/config';
 import { MockKV } from './helpers/mock-kv';
 import {
   mockEnv,
@@ -182,7 +183,7 @@ describe('getOrDiscoverSegments', () => {
     const stored = [
       { key: 'test', label: 'Test', customerContext: {} },
     ];
-    await kv.put('segments:registry', JSON.stringify(stored));
+    await kv.put(KV_KEYS.SEGMENTS_REGISTRY, JSON.stringify(stored));
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
     const result = await getOrDiscoverSegments(env);
     expect(result).toEqual(stored);
@@ -195,7 +196,7 @@ describe('getOrDiscoverSegments', () => {
     const result = await getOrDiscoverSegments(env);
     expect(result).toHaveLength(2);
     // Verify stored in KV
-    const stored = await kv.get('segments:registry', 'json');
+    const stored = await kv.get(KV_KEYS.SEGMENTS_REGISTRY, 'json');
     expect(stored).toHaveLength(2);
   });
 });

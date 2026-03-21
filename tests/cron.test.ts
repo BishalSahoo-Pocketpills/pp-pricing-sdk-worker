@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleScheduled } from '../src/cron';
+import { handleScheduled } from '@/cron';
+import { KV_KEYS } from '@/config';
 import { MockKV } from './helpers/mock-kv';
 import { mockEnv } from './helpers/fixtures';
 
@@ -11,7 +12,7 @@ describe('handleScheduled', () => {
   it('runs revalidation and logs success', async () => {
     const kv = new MockKV();
     await kv.put(
-      'products:catalog',
+      KV_KEYS.PRODUCTS_CATALOG,
       JSON.stringify({ 'prod-1': { basePrice: 100, lastSeen: 1000 } }),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -70,7 +71,7 @@ describe('handleScheduled', () => {
     await handleScheduled(env);
 
     // Should complete without error
-    const lastRevalidation = await kv.get('meta:last-revalidation');
+    const lastRevalidation = await kv.get(KV_KEYS.META_LAST_REVALIDATION);
     expect(lastRevalidation).toBeNull();
   });
 });

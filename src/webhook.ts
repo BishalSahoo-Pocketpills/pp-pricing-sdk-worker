@@ -1,16 +1,16 @@
-import { PRICING_EVENTS, KV_KEYS } from './config';
-import { verifyWebhookSignature } from './security';
-import { getProducts, setPricing, setOffers, getMeta, setMeta } from './store';
-import { fetchQualifications } from './voucherify-client';
+import { PRICING_EVENTS, KV_KEYS } from '@/config';
+import { verifyWebhookSignature } from '@/security';
+import { getProducts, setPricing, setOffers, getMeta, setMeta } from '@/store';
+import { fetchQualifications } from '@/voucherify-client';
 import {
   parseQualificationResponse,
   buildPricingMatrix,
-} from './pricing';
-import { buildOffersBundle } from './offers';
-import { discoverSegments } from './segments';
-import { setSegments } from './store';
-import { syncPricingToCMS } from './cms';
-import type { Env } from './types';
+} from '@/pricing';
+import { buildOffersBundle } from '@/offers';
+import { discoverSegments } from '@/segments';
+import { setSegments } from '@/store';
+import { performCMSSync } from '@/cms';
+import type { Env } from '@/types';
 
 export async function handleWebhook(
   request: Request,
@@ -123,10 +123,10 @@ export async function revalidateAllSegments(env: Env): Promise<void> {
     new Date().toISOString(),
   );
 
-  // Sync pricing to Webflow CMS if enabled
+  // Sync pricing and offers to Webflow CMS if enabled
   if (env.CMS_SYNC_ENABLED === 'true') {
     try {
-      await syncPricingToCMS(env);
+      await performCMSSync(env);
     } catch (error) {
       console.error('[pp-pricing-worker] CMS sync failed:', error);
     }

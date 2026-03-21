@@ -1,9 +1,9 @@
-import { sanitizeProductIds, sanitizeString, corsHeaders } from './security';
-import { getPricing, updateProducts, getSegments, getMeta, getOffers } from './store';
-import { fetchValidations, fetchQualifications } from './voucherify-client';
-import { setupCollections, getCMSStatus, syncPricingToCMS } from './cms';
-import { KV_KEYS } from './config';
-import type { Env, PricingEntry, PricingResponse, OffersResponse } from './types';
+import { sanitizeProductIds, sanitizeString, corsHeaders } from '@/security';
+import { getPricing, updateProducts, getSegments, getMeta, getOffers } from '@/store';
+import { fetchValidations, fetchQualifications } from '@/voucherify-client';
+import { setupCollections, getCMSStatus, performCMSSync } from '@/cms';
+import { KV_KEYS } from '@/config';
+import type { Env, PricingEntry, PricingResponse, OffersResponse } from '@/types';
 
 export async function handlePrices(
   request: Request,
@@ -214,7 +214,7 @@ export async function handleCMSSync(
 ): Promise<Response> {
   // Fire-and-forget: sync in background, respond immediately
   ctx.waitUntil(
-    syncPricingToCMS(env).catch((err) =>
+    performCMSSync(env).catch((err) =>
       console.error('[pp-pricing-worker] CMS sync failed:', err),
     ),
   );

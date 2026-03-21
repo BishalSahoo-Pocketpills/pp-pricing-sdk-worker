@@ -1,5 +1,5 @@
-import { KV_KEYS } from './config';
-import type { PricingEntry, SegmentDefinition, ProductEntry, OffersBundle } from './types';
+import { KV_KEYS } from '@/config';
+import type { PricingEntry, SegmentDefinition, ProductEntry, OffersBundle } from '@/types';
 
 export async function getPricing(
   kv: KVNamespace,

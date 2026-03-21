@@ -1,5 +1,5 @@
-import { RETRY } from './config';
-import type { Env } from './types';
+import { RETRY } from '@/config';
+import type { Env } from '@/types';
 
 function authHeaders(env: Env): Record<string, string> {
   return {

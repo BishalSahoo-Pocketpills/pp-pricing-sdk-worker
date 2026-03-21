@@ -4,7 +4,7 @@ import type {
   ProductEntry,
   VoucherifyDiscount,
   VoucherifyRedeemable,
-} from './types';
+} from '@/types';
 
 export function calculateDiscount(
   discount: VoucherifyDiscount,

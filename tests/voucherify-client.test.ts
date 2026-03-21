@@ -5,7 +5,7 @@ import {
   listCampaigns,
   listPromotionTiers,
   getValidationRules,
-} from '../src/voucherify-client';
+} from '@/voucherify-client';
 import { mockEnv } from './helpers/fixtures';
 
 const env = mockEnv();

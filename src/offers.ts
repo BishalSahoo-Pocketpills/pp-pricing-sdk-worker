@@ -5,8 +5,8 @@ import type {
   OfferDiscount,
   OfferEntry,
   OffersBundle,
-} from './types';
-import { formatPrice } from './pricing';
+} from '@/types';
+import { formatPrice } from '@/pricing';
 
 export function categorizeRedeemable(r: VoucherifyRedeemable): OfferCategory {
   if (r.object === 'promotion_tier' || r.object === 'promotion_stack') {

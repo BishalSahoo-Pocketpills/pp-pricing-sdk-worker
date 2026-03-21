@@ -9,9 +9,9 @@ import {
   updateLiveItem,
   updateLiveItems,
   publishItems,
-} from '../src/webflow-client';
+} from '@/webflow-client';
 import { mockEnv } from './helpers/fixtures';
-import type { Env } from '../src/types';
+import type { Env } from '@/types';
 
 // Mock global fetch
 const mockFetch = vi.fn();

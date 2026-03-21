@@ -1,6 +1,6 @@
-import { PATHS } from './config';
-import { handleCorsPreflight } from './security';
-import { handleWebhook } from './webhook';
+import { PATHS } from '@/config';
+import { handleCorsPreflight, verifyAdminToken } from '@/security';
+import { handleWebhook } from '@/webhook';
 import {
   handlePrices,
   handleOffers,
@@ -11,8 +11,8 @@ import {
   handleCMSSetup,
   handleCMSStatus,
   handleCMSSync,
-} from './api';
-import type { Env } from './types';
+} from '@/api';
+import type { Env } from '@/types';
 
 export async function router(
   request: Request,
@@ -69,6 +69,17 @@ export async function router(
   // Health
   if (method === 'GET' && pathname === PATHS.HEALTH) {
     return handleHealth(request, env);
+  }
+
+  // CMS admin routes — require admin token
+  if (
+    pathname === PATHS.CMS_SETUP ||
+    pathname === PATHS.CMS_STATUS ||
+    pathname === PATHS.CMS_SYNC
+  ) {
+    if (!verifyAdminToken(request, env.ADMIN_API_TOKEN)) {
+      return new Response('Unauthorized', { status: 401 });
+    }
   }
 
   // CMS Setup

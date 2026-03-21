@@ -1,6 +1,6 @@
-import { router } from './router';
-import { handleScheduled } from './cron';
-import type { Env } from './types';
+import { router } from '@/router';
+import { handleScheduled } from '@/cron';
+import type { Env } from '@/types';
 
 export default {
   async fetch(

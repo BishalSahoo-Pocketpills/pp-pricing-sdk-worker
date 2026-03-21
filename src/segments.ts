@@ -1,11 +1,11 @@
-import { DEFAULT_SEGMENTS } from './config';
-import { getSegments, setSegments } from './store';
+import { DEFAULT_SEGMENTS } from '@/config';
+import { getSegments, setSegments } from '@/store';
 import {
   listCampaigns,
   listPromotionTiers,
   getValidationRules,
-} from './voucherify-client';
-import type { Env, SegmentDefinition } from './types';
+} from '@/voucherify-client';
+import type { Env, SegmentDefinition } from '@/types';
 
 export function parseValidationConditions(
   conditions: any,

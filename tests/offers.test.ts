@@ -5,7 +5,7 @@ import {
   buildOfferEntry,
   buildOffersBundle,
   extractApplicableProductIds,
-} from '../src/offers';
+} from '@/offers';
 import {
   mockEnv,
   REDEEMABLE_PERCENT,
@@ -16,7 +16,7 @@ import {
   REDEEMABLE_GIFT_VOUCHER,
   REDEEMABLE_NO_DISCOUNT,
 } from './helpers/fixtures';
-import type { VoucherifyRedeemable } from '../src/types';
+import type { VoucherifyRedeemable } from '@/types';
 
 const env = mockEnv();
 

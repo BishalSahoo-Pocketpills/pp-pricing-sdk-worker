@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { router } from '../src/router';
+import { router } from '@/router';
 import { MockKV } from './helpers/mock-kv';
 import { mockEnv } from './helpers/fixtures';
 

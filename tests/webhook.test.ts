@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { handleWebhook, processWebhook, revalidateAllSegments } from '../src/webhook';
+import { handleWebhook, processWebhook, revalidateAllSegments } from '@/webhook';
+import { KV_KEYS } from '@/config';
 import { MockKV } from './helpers/mock-kv';
 import { mockEnv, WEBHOOK_PAYLOAD_CAMPAIGN, WEBHOOK_PAYLOAD_IRRELEVANT } from './helpers/fixtures';
 
@@ -84,7 +85,7 @@ describe('processWebhook', () => {
 
     await processWebhook('campaign.updated', env);
 
-    const count = await kv.get('meta:webhook-count');
+    const count = await kv.get(KV_KEYS.META_WEBHOOK_COUNT);
     expect(count).toBe('1');
   });
 
@@ -96,9 +97,9 @@ describe('processWebhook', () => {
     await processWebhook('customer.created', env);
 
     // Should increment counter but not set revalidation timestamp
-    const count = await kv.get('meta:webhook-count');
+    const count = await kv.get(KV_KEYS.META_WEBHOOK_COUNT);
     expect(count).toBe('1');
-    const lastRevalidation = await kv.get('meta:last-revalidation');
+    const lastRevalidation = await kv.get(KV_KEYS.META_LAST_REVALIDATION);
     expect(lastRevalidation).toBeNull();
   });
 
@@ -106,7 +107,7 @@ describe('processWebhook', () => {
     const kv = new MockKV();
     // Seed product catalog
     await kv.put(
-      'products:catalog',
+      KV_KEYS.PRODUCTS_CATALOG,
       JSON.stringify({ 'prod-1': { basePrice: 100, lastSeen: 1000 } }),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -134,7 +135,7 @@ describe('processWebhook', () => {
 
     await processWebhook('campaign.updated', env);
 
-    const lastRevalidation = await kv.get('meta:last-revalidation');
+    const lastRevalidation = await kv.get(KV_KEYS.META_LAST_REVALIDATION);
     expect(lastRevalidation).toBeTruthy();
   });
 });
@@ -151,14 +152,14 @@ describe('revalidateAllSegments', () => {
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('Product catalog is empty'),
     );
-    const lastRevalidation = await kv.get('meta:last-revalidation');
+    const lastRevalidation = await kv.get(KV_KEYS.META_LAST_REVALIDATION);
     expect(lastRevalidation).toBeNull();
   });
 
   it('writes pricing matrix per segment', async () => {
     const kv = new MockKV();
     await kv.put(
-      'products:catalog',
+      KV_KEYS.PRODUCTS_CATALOG,
       JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -205,16 +206,16 @@ describe('revalidateAllSegments', () => {
 
     await revalidateAllSegments(env);
 
-    const anonPricing = await kv.get('prices:anonymous', 'json');
+    const anonPricing = await kv.get(KV_KEYS.PRICES + 'anonymous', 'json');
     expect(anonPricing['prod-1'].discountedPrice).toBe(54); // 60 - 10% = 54
-    const memberPricing = await kv.get('prices:member', 'json');
+    const memberPricing = await kv.get(KV_KEYS.PRICES + 'member', 'json');
     expect(memberPricing['prod-1'].discountedPrice).toBe(48); // 60 - 20% = 48
   });
 
   it('writes offers bundle alongside pricing matrix', async () => {
     const kv = new MockKV();
     await kv.put(
-      'products:catalog',
+      KV_KEYS.PRODUCTS_CATALOG,
       JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -253,7 +254,7 @@ describe('revalidateAllSegments', () => {
 
     await revalidateAllSegments(env);
 
-    const offers = await kv.get('offers:anonymous', 'json');
+    const offers = await kv.get(KV_KEYS.OFFERS + 'anonymous', 'json');
     expect(offers).toBeTruthy();
     expect(offers.promotions.length).toBe(1);
     expect(offers.promotions[0].id).toBe('promo_1');
@@ -261,15 +262,48 @@ describe('revalidateAllSegments', () => {
     expect(offers.coupons[0].code).toBe('SAVE10');
 
     // member offers should be empty
-    const memberOffers = await kv.get('offers:member', 'json');
+    const memberOffers = await kv.get(KV_KEYS.OFFERS + 'member', 'json');
     expect(memberOffers).toBeTruthy();
     expect(memberOffers.coupons).toEqual([]);
+  });
+
+  it('calls performCMSSync when CMS_SYNC_ENABLED is true', async () => {
+    const kv = new MockKV();
+    await kv.put(
+      KV_KEYS.PRODUCTS_CATALOG,
+      JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
+    );
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace, CMS_SYNC_ENABLED: 'true' });
+
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+    // anonymous qualifications
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+    // member qualifications
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+
+    // Mock performCMSSync (which internally calls syncPricingToCMS + syncOffersToCMS)
+    const cms = await import('@/cms');
+    const performSyncSpy = vi.spyOn(cms, 'performCMSSync').mockResolvedValue({
+      pricing: { created: 0, updated: 0, published: 0, errors: [] },
+      offers: { created: 0, updated: 0, published: 0, errors: [] },
+    });
+
+    await revalidateAllSegments(env);
+
+    expect(performSyncSpy).toHaveBeenCalledWith(env);
+
+    performSyncSpy.mockRestore();
   });
 
   it('handles qualification failure for individual segments', async () => {
     const kv = new MockKV();
     await kv.put(
-      'products:catalog',
+      KV_KEYS.PRODUCTS_CATALOG,
       JSON.stringify({ 'prod-1': { basePrice: 100, lastSeen: 1000 } }),
     );
     const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
@@ -288,10 +322,10 @@ describe('revalidateAllSegments', () => {
     await revalidateAllSegments(env);
 
     // anonymous pricing should not exist (failed)
-    const anonPricing = await kv.get('prices:anonymous', 'json');
+    const anonPricing = await kv.get(KV_KEYS.PRICES + 'anonymous', 'json');
     expect(anonPricing).toBeNull();
     // member pricing should exist
-    const memberPricing = await kv.get('prices:member', 'json');
+    const memberPricing = await kv.get(KV_KEYS.PRICES + 'member', 'json');
     expect(memberPricing).toBeTruthy();
   });
 });
