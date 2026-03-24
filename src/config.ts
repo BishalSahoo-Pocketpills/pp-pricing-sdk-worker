@@ -1,3 +1,5 @@
+import type { SegmentDefinition } from '@/types';
+
 // KV key prefixes
 export const KV_KEYS = {
   PRICES: 'prices:',
@@ -11,6 +13,8 @@ export const KV_KEYS = {
   META_LAST_CMS_SYNC_RESULT: 'meta:last-cms-sync-result',
   REVALIDATION_LOCK: 'revalidation:lock',
   OFFERS: 'offers:',
+  CMS_SYNC_PENDING: 'cms:sync-pending',
+  CATALOG_LOCK: 'catalog:lock',
 } as const;
 
 // Default segments (always present)
@@ -52,6 +56,14 @@ export const RETRY = {
 export const CATALOG = {
   STALE_THRESHOLD_MS: 30 * 24 * 60 * 60 * 1000, // 30 days
   MAX_PRODUCTS: 5_000,
+  MAX_PRODUCT_IDS_PER_REQUEST: 100,
+  CATALOG_LOCK_TTL: 5, // seconds
+} as const;
+
+// Qualification pagination
+export const QUALIFICATION = {
+  PAGE_LIMIT: 50,
+  MAX_PAGES: 10, // safety cap: max 500 redeemables
 } as const;
 
 // Webflow CMS configuration
@@ -59,12 +71,45 @@ export const WEBFLOW = {
   API_BASE: 'https://api.webflow.com/v2',
   BULK_LIMIT: 100,
   COLLECTIONS: {
-    TREATMENTS: { displayName: 'Treatments', singularName: 'Treatment', slug: 'treatments' },
-    PRICING: { displayName: 'Pricing', singularName: 'Pricing', slug: 'pricing' },
+    PRODUCTS: { displayName: 'Products', singularName: 'Product', slug: 'products' },
+    CATEGORIES: { displayName: 'Categories', singularName: 'Category', slug: 'categories' },
     SEGMENTS: { displayName: 'Segments', singularName: 'Segment', slug: 'segments' },
-    OFFERS: { displayName: 'Offers', singularName: 'Offer', slug: 'offers' },
+    DISCOUNT_COUPONS: { displayName: 'Discount Coupons', singularName: 'Discount Coupon', slug: 'discount-coupons' },
+    VOUCHERS: { displayName: 'Vouchers', singularName: 'Voucher', slug: 'vouchers' },
+    REFERRAL_CODES: { displayName: 'Referral Codes', singularName: 'Referral Code', slug: 'referral-codes' },
+    PROMOTIONS: { displayName: 'Promotions', singularName: 'Promotion', slug: 'promotions' },
+    LOYALTY_PROGRAMS: { displayName: 'Loyalty Programs', singularName: 'Loyalty Program', slug: 'loyalty-programs' },
   },
 } as const;
+
+// Default categories (seed data)
+export const DEFAULT_CATEGORIES = [
+  { name: 'Treatment', slug: 'treatment', description: 'Prescription treatments' },
+] as const;
+
+// Default category assigned to products when no explicit category is set
+export const DEFAULT_PRODUCT_CATEGORY = 'treatment' as const;
+
+// Configurable segments: merges defaults with CUSTOM_SEGMENTS env var
+export function getConfiguredSegments(env: { CUSTOM_SEGMENTS?: string }): SegmentDefinition[] {
+  const segments: SegmentDefinition[] = [...DEFAULT_SEGMENTS.map(s => ({ ...s }))];
+  if (env.CUSTOM_SEGMENTS) {
+    try {
+      const custom: Array<{ key: string; label: string; metadata: Record<string, any> }> =
+        JSON.parse(env.CUSTOM_SEGMENTS);
+      for (const seg of custom) {
+        segments.push({
+          key: seg.key,
+          label: seg.label,
+          customerContext: { metadata: seg.metadata },
+        });
+      }
+    } catch {
+      console.warn('[pp-pricing-worker] Failed to parse CUSTOM_SEGMENTS env var');
+    }
+  }
+  return segments;
+}
 
 // API paths
 export const PATHS = {

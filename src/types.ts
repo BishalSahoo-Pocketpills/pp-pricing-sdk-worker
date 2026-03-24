@@ -146,10 +146,14 @@ export interface WebflowItem {
 }
 
 export interface CMSCollectionIds {
-  treatments: string;
-  pricing: string;
+  products: string;
+  categories: string;
   segments: string;
-  offers: string;
+  discountCoupons: string;
+  vouchers: string;
+  referralCodes: string;
+  promotions: string;
+  loyaltyPrograms: string;
 }
 
 export interface CMSSyncResult {
@@ -157,13 +161,23 @@ export interface CMSSyncResult {
   updated: number;
   published: number;
   errors: string[];
+  collections?: Record<string, { created: number; updated: number; errors: string[] }>;
 }
 
 export interface CMSStatus {
   enabled: boolean;
   collections: CMSCollectionIds | null;
   lastSync: string | null;
-  itemCounts: { treatments: number; pricing: number; segments: number; offers: number } | null;
+  itemCounts: {
+    products: number;
+    categories: number;
+    segments: number;
+    discountCoupons: number;
+    vouchers: number;
+    referralCodes: number;
+    promotions: number;
+    loyaltyPrograms: number;
+  } | null;
 }
 
 // --- Worker env binding ---
@@ -182,4 +196,5 @@ export interface Env {
   WEBFLOW_SITE_ID: string;
   CMS_SYNC_ENABLED: string;
   ADMIN_API_TOKEN: string;
+  CUSTOM_SEGMENTS?: string;
 }

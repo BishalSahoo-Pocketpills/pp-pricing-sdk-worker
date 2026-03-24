@@ -16,7 +16,8 @@ ALLOWED_ORIGINS = "https://pocketpills.com,https://www.pocketpills.com,https://t
 PRICING_CURRENCY = "CAD"
 PRICING_LOCALE = "en-CA"
 PRICING_CURRENCY_SYMBOL = "$"
-CMS_SYNC_ENABLED = "false"
+CMS_SYNC_ENABLED = "true"
+CUSTOM_SEGMENTS = '[{"key":"ad-google","label":"Google Ads","metadata":{"ad_source":"google"}},{"key":"ad-facebook","label":"Facebook Ads","metadata":{"ad_source":"facebook"}}]'
 
 # Secrets (set via `wrangler secret put`):
 # VOUCHERIFY_APP_ID
@@ -24,3 +25,4 @@ CMS_SYNC_ENABLED = "false"
 # VOUCHERIFY_WEBHOOK_SECRET
 # WEBFLOW_API_TOKEN
 # WEBFLOW_SITE_ID
+# ADMIN_API_TOKEN

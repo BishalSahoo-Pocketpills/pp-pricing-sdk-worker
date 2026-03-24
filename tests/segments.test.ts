@@ -4,7 +4,7 @@ import {
   discoverSegments,
   getOrDiscoverSegments,
 } from '@/segments';
-import { KV_KEYS } from '@/config';
+import { KV_KEYS, getConfiguredSegments } from '@/config';
 import { MockKV } from './helpers/mock-kv';
 import {
   mockEnv,
@@ -93,6 +93,36 @@ describe('parseValidationConditions', () => {
   });
 });
 
+describe('getConfiguredSegments', () => {
+  it('returns defaults when CUSTOM_SEGMENTS not set', () => {
+    const segments = getConfiguredSegments({});
+    expect(segments).toHaveLength(2);
+    expect(segments[0].key).toBe('anonymous');
+    expect(segments[1].key).toBe('member');
+  });
+
+  it('merges custom segments from env var', () => {
+    const custom = [
+      { key: 'ad-google', label: 'Google Ads', metadata: { ad_source: 'google' } },
+      { key: 'ad-facebook', label: 'Facebook Ads', metadata: { ad_source: 'facebook' } },
+    ];
+    const segments = getConfiguredSegments({ CUSTOM_SEGMENTS: JSON.stringify(custom) });
+    expect(segments).toHaveLength(4);
+    expect(segments[2].key).toBe('ad-google');
+    expect(segments[2].label).toBe('Google Ads');
+    expect(segments[2].customerContext).toEqual({ metadata: { ad_source: 'google' } });
+    expect(segments[3].key).toBe('ad-facebook');
+  });
+
+  it('handles malformed JSON gracefully', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const segments = getConfiguredSegments({ CUSTOM_SEGMENTS: 'not-json' });
+    expect(segments).toHaveLength(2); // only defaults
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to parse CUSTOM_SEGMENTS'));
+    warnSpy.mockRestore();
+  });
+});
+
 describe('discoverSegments', () => {
   it('returns default segments when API fails', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network'));
@@ -155,6 +185,15 @@ describe('discoverSegments', () => {
     const segments = await discoverSegments(env);
     const memberSegments = segments.filter((s) => s.key === 'is_member:true');
     expect(memberSegments).toHaveLength(1);
+  });
+
+  it('includes configured custom segments in base list', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('Network'));
+    const custom = [{ key: 'ad-google', label: 'Google Ads', metadata: { ad_source: 'google' } }];
+    const env = mockEnv({ CUSTOM_SEGMENTS: JSON.stringify(custom) });
+    const segments = await discoverSegments(env);
+    expect(segments).toHaveLength(3); // anonymous + member + ad-google
+    expect(segments[2].key).toBe('ad-google');
   });
 
   it('skips tiers without validation rules', async () => {
