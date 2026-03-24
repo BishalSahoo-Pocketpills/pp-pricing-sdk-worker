@@ -4,11 +4,11 @@ import {
   createCollection,
   createField,
   listItems,
-  createLiveItem,
-  createLiveItems,
-  updateLiveItem,
-  updateLiveItems,
-  publishItems,
+  createItem,
+  createItems,
+  updateItem,
+  updateItems,
+  publishSite,
 } from '@/webflow-client';
 import { mockEnv } from './helpers/fixtures';
 import type { Env } from '@/types';
@@ -48,7 +48,7 @@ describe('webflow-client', () => {
   describe('listCollections', () => {
     it('returns collections from Webflow API', async () => {
       const collections = [
-        { id: 'col_1', displayName: 'Treatments', singularName: 'Treatment', slug: 'treatments', fields: [] },
+        { id: 'col_1', displayName: 'Products', singularName: 'Product', slug: 'products', fields: [] },
       ];
       mockFetch.mockResolvedValueOnce(jsonResponse({ collections }));
 
@@ -158,30 +158,30 @@ describe('webflow-client', () => {
   });
 
   // =====================================================
-  // createLiveItem
+  // createItem
   // =====================================================
 
-  describe('createLiveItem', () => {
-    it('creates a single live item', async () => {
+  describe('createItem', () => {
+    it('creates a single item', async () => {
       const fieldData = { name: 'Test', slug: 'test' };
       const created = { id: 'item_1', fieldData, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' };
       mockFetch.mockResolvedValueOnce(jsonResponse(created));
 
-      const result = await createLiveItem(env, 'col_1', fieldData);
+      const result = await createItem(env, 'col_1', fieldData);
 
       expect(result).toEqual(created);
       const [url, init] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items/live');
+      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items');
       expect(init.method).toBe('POST');
       expect(JSON.parse(init.body)).toEqual({ fieldData });
     });
   });
 
   // =====================================================
-  // createLiveItems (bulk)
+  // createItems (bulk)
   // =====================================================
 
-  describe('createLiveItems', () => {
+  describe('createItems', () => {
     it('creates items in bulk', async () => {
       const items = [
         { fieldData: { name: 'A', slug: 'a' } },
@@ -193,7 +193,7 @@ describe('webflow-client', () => {
       ];
       mockFetch.mockResolvedValueOnce(jsonResponse({ items: created }));
 
-      const result = await createLiveItems(env, 'col_1', items);
+      const result = await createItems(env, 'col_1', items);
 
       expect(result).toHaveLength(2);
       expect(mockFetch).toHaveBeenCalledOnce();
@@ -215,7 +215,7 @@ describe('webflow-client', () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({ items: batch1Result }));
       mockFetch.mockResolvedValueOnce(jsonResponse({ items: batch2Result }));
 
-      const result = await createLiveItems(env, 'col_1', items);
+      const result = await createItems(env, 'col_1', items);
 
       expect(result).toHaveLength(150);
       expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -224,35 +224,35 @@ describe('webflow-client', () => {
     it('handles empty items response', async () => {
       mockFetch.mockResolvedValueOnce(jsonResponse({}));
 
-      const result = await createLiveItems(env, 'col_1', [{ fieldData: { name: 'X' } }]);
+      const result = await createItems(env, 'col_1', [{ fieldData: { name: 'X' } }]);
       expect(result).toEqual([]);
     });
   });
 
   // =====================================================
-  // updateLiveItem
+  // updateItem
   // =====================================================
 
-  describe('updateLiveItem', () => {
-    it('updates a single live item', async () => {
+  describe('updateItem', () => {
+    it('updates a single item', async () => {
       const fieldData = { name: 'Updated' };
       const updated = { id: 'item_1', fieldData, isDraft: false, isArchived: false, createdOn: '', lastUpdated: '' };
       mockFetch.mockResolvedValueOnce(jsonResponse(updated));
 
-      const result = await updateLiveItem(env, 'col_1', 'item_1', fieldData);
+      const result = await updateItem(env, 'col_1', 'item_1', fieldData);
 
       expect(result).toEqual(updated);
       const [url, init] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items/item_1/live');
+      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items/item_1');
       expect(init.method).toBe('PATCH');
     });
   });
 
   // =====================================================
-  // updateLiveItems (bulk)
+  // updateItems (bulk)
   // =====================================================
 
-  describe('updateLiveItems', () => {
+  describe('updateItems', () => {
     it('updates items in bulk', async () => {
       const items = [
         { id: 'item_1', fieldData: { name: 'Updated A' } },
@@ -260,11 +260,11 @@ describe('webflow-client', () => {
       ];
       mockFetch.mockResolvedValueOnce(jsonResponse(null));
 
-      await updateLiveItems(env, 'col_1', items);
+      await updateItems(env, 'col_1', items);
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, init] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items/live');
+      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items');
       expect(init.method).toBe('PATCH');
     });
 
@@ -277,37 +277,27 @@ describe('webflow-client', () => {
       mockFetch.mockResolvedValueOnce(jsonResponse(null));
       mockFetch.mockResolvedValueOnce(jsonResponse(null));
 
-      await updateLiveItems(env, 'col_1', items);
+      await updateItems(env, 'col_1', items);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
   });
 
   // =====================================================
-  // publishItems
+  // publishSite
   // =====================================================
 
-  describe('publishItems', () => {
-    it('publishes items', async () => {
-      mockFetch.mockResolvedValueOnce(jsonResponse(null));
+  describe('publishSite', () => {
+    it('publishes the site', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ queued: true }));
 
-      await publishItems(env, 'col_1', ['item_1', 'item_2']);
+      await publishSite(env);
 
       expect(mockFetch).toHaveBeenCalledOnce();
       const [url, init] = mockFetch.mock.calls[0];
-      expect(url).toBe('https://api.webflow.com/v2/collections/col_1/items/publish');
+      expect(url).toBe('https://api.webflow.com/v2/sites/test-site-id/publish');
       expect(init.method).toBe('POST');
-      expect(JSON.parse(init.body)).toEqual({ itemIds: ['item_1', 'item_2'] });
-    });
-
-    it('batches publish exceeding BULK_LIMIT', async () => {
-      const ids = Array.from({ length: 150 }, (_, i) => `item_${i}`);
-      mockFetch.mockResolvedValueOnce(jsonResponse(null));
-      mockFetch.mockResolvedValueOnce(jsonResponse(null));
-
-      await publishItems(env, 'col_1', ids);
-
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(JSON.parse(init.body)).toEqual({ publishToWebflowSubdomain: true });
     });
   });
 
@@ -413,7 +403,7 @@ describe('webflow-client', () => {
     it('handles 204 No Content', async () => {
       mockFetch.mockResolvedValueOnce(new Response('', { status: 200 }));
 
-      const result = await publishItems(env, 'col_1', ['item_1']);
+      const result = await publishSite(env);
       expect(result).toBeUndefined();
     });
   });

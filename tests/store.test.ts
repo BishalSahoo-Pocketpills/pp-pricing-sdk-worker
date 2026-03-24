@@ -110,6 +110,29 @@ describe('product operations', () => {
     expect(result['fresh-prod'].basePrice).toBe(75);
     expect(result['new-prod'].basePrice).toBe(100);
   });
+
+  it('updateProducts skips update when catalog lock is held', async () => {
+    await setProducts(kvNs(), {
+      'prod-1': { basePrice: 100, lastSeen: Date.now() },
+    });
+    // Simulate an existing lock
+    await kv.put('catalog:lock', String(Date.now()));
+
+    const result = await updateProducts(kvNs(), { 'prod-2': 200 });
+
+    // Should return existing catalog without the new product
+    expect(result['prod-1'].basePrice).toBe(100);
+    expect(result['prod-2']).toBeUndefined();
+  });
+
+  it('updateProducts acquires and releases catalog lock', async () => {
+    const result = await updateProducts(kvNs(), { 'prod-1': 100 });
+    expect(result['prod-1'].basePrice).toBe(100);
+
+    // Lock should be released after completion
+    const lockValue = await kv.get('catalog:lock');
+    expect(lockValue).toBeNull();
+  });
 });
 
 describe('meta operations', () => {

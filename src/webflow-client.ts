@@ -99,6 +99,27 @@ export async function createField(
   );
 }
 
+export async function createFieldMultiRef(
+  env: Env,
+  collectionId: string,
+  field: { displayName: string; slug: string },
+  targetCollectionId: string,
+): Promise<WebflowField> {
+  return webflowFetch(
+    `${WEBFLOW.API_BASE}/collections/${collectionId}/fields`,
+    {
+      method: 'POST',
+      headers: authHeaders(env),
+      body: JSON.stringify({
+        type: 'ItemRefSet',
+        displayName: field.displayName,
+        slug: field.slug,
+        metadata: { collectionId: targetCollectionId },
+      }),
+    },
+  );
+}
+
 // --- Item operations ---
 
 export async function listItems(
@@ -127,13 +148,13 @@ export async function listItems(
   return allItems;
 }
 
-export async function createLiveItem(
+export async function createItem(
   env: Env,
   collectionId: string,
   fieldData: Record<string, any>,
 ): Promise<WebflowItem> {
   return webflowFetch(
-    `${WEBFLOW.API_BASE}/collections/${collectionId}/items/live`,
+    `${WEBFLOW.API_BASE}/collections/${collectionId}/items`,
     {
       method: 'POST',
       headers: authHeaders(env),
@@ -142,7 +163,7 @@ export async function createLiveItem(
   );
 }
 
-export async function createLiveItems(
+export async function createItems(
   env: Env,
   collectionId: string,
   items: Array<{ fieldData: Record<string, any> }>,
@@ -153,7 +174,7 @@ export async function createLiveItems(
   for (let i = 0; i < items.length; i += WEBFLOW.BULK_LIMIT) {
     const batch = items.slice(i, i + WEBFLOW.BULK_LIMIT);
     const data = await webflowFetch(
-      `${WEBFLOW.API_BASE}/collections/${collectionId}/items/live`,
+      `${WEBFLOW.API_BASE}/collections/${collectionId}/items`,
       {
         method: 'POST',
         headers: authHeaders(env),
@@ -168,14 +189,14 @@ export async function createLiveItems(
   return results;
 }
 
-export async function updateLiveItem(
+export async function updateItem(
   env: Env,
   collectionId: string,
   itemId: string,
   fieldData: Record<string, any>,
 ): Promise<WebflowItem> {
   return webflowFetch(
-    `${WEBFLOW.API_BASE}/collections/${collectionId}/items/${itemId}/live`,
+    `${WEBFLOW.API_BASE}/collections/${collectionId}/items/${itemId}`,
     {
       method: 'PATCH',
       headers: authHeaders(env),
@@ -184,7 +205,7 @@ export async function updateLiveItem(
   );
 }
 
-export async function updateLiveItems(
+export async function updateItems(
   env: Env,
   collectionId: string,
   items: Array<{ id: string; fieldData: Record<string, any> }>,
@@ -193,7 +214,7 @@ export async function updateLiveItems(
   for (let i = 0; i < items.length; i += WEBFLOW.BULK_LIMIT) {
     const batch = items.slice(i, i + WEBFLOW.BULK_LIMIT);
     await webflowFetch(
-      `${WEBFLOW.API_BASE}/collections/${collectionId}/items/live`,
+      `${WEBFLOW.API_BASE}/collections/${collectionId}/items`,
       {
         method: 'PATCH',
         headers: authHeaders(env),
@@ -203,21 +224,13 @@ export async function updateLiveItems(
   }
 }
 
-export async function publishItems(
-  env: Env,
-  collectionId: string,
-  itemIds: string[],
-): Promise<void> {
-  // Batch in chunks of BULK_LIMIT
-  for (let i = 0; i < itemIds.length; i += WEBFLOW.BULK_LIMIT) {
-    const batch = itemIds.slice(i, i + WEBFLOW.BULK_LIMIT);
-    await webflowFetch(
-      `${WEBFLOW.API_BASE}/collections/${collectionId}/items/publish`,
-      {
-        method: 'POST',
-        headers: authHeaders(env),
-        body: JSON.stringify({ itemIds: batch }),
-      },
-    );
-  }
+export async function publishSite(env: Env): Promise<void> {
+  await webflowFetch(
+    `${WEBFLOW.API_BASE}/sites/${env.WEBFLOW_SITE_ID}/publish`,
+    {
+      method: 'POST',
+      headers: authHeaders(env),
+      body: JSON.stringify({ publishToWebflowSubdomain: true }),
+    },
+  );
 }

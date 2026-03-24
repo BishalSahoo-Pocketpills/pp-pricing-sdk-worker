@@ -1,4 +1,4 @@
-import { PRICING_EVENTS, KV_KEYS } from '@/config';
+import { PRICING_EVENTS, KV_KEYS, QUALIFICATION } from '@/config';
 import { verifyWebhookSignature } from '@/security';
 import { getProducts, setPricing, setOffers, getMeta, setMeta } from '@/store';
 import { fetchQualifications } from '@/voucherify-client';
@@ -9,8 +9,7 @@ import {
 import { buildOffersBundle } from '@/offers';
 import { discoverSegments } from '@/segments';
 import { setSegments } from '@/store';
-import { performCMSSync } from '@/cms';
-import type { Env, ProductEntry } from '@/types';
+import type { Env, ProductEntry, VoucherifyRedeemable } from '@/types';
 
 export async function handleWebhook(
   request: Request,
@@ -118,14 +117,37 @@ async function revalidateAllSegmentsInner(env: Env): Promise<void> {
     new Date().toISOString(),
   );
 
-  // Sync pricing and offers to Webflow CMS if enabled
+  // Flag CMS sync as pending for the cron job to pick up (decoupled from revalidation)
   if (env.CMS_SYNC_ENABLED === 'true') {
-    try {
-      await performCMSSync(env);
-    } catch (error) {
-      console.error('[pp-pricing-worker] CMS sync failed:', error);
-    }
+    await setMeta(env.PRICING_KV, KV_KEYS.CMS_SYNC_PENDING, new Date().toISOString());
   }
+}
+
+async function fetchAllQualifications(
+  env: Env,
+  body: any,
+): Promise<VoucherifyRedeemable[]> {
+  const allRedeemables: VoucherifyRedeemable[] = [];
+  let page = 1;
+
+  while (page <= QUALIFICATION.MAX_PAGES) {
+    const response = await fetchQualifications(env, {
+      ...body,
+      options: { ...body.options, limit: QUALIFICATION.PAGE_LIMIT, page },
+    });
+
+    const redeemables = parseQualificationResponse(response);
+    allRedeemables.push(...redeemables);
+
+    const total = response?.qualifications?.redeemables?.total
+      ?? response?.redeemables?.total
+      ?? redeemables.length;
+
+    if (allRedeemables.length >= total || redeemables.length < QUALIFICATION.PAGE_LIMIT) break;
+    page++;
+  }
+
+  return allRedeemables;
 }
 
 async function qualifySegment(
@@ -143,28 +165,15 @@ async function qualifySegment(
       }),
     );
 
-    const response = await fetchQualifications(env, {
+    const redeemables = await fetchAllQualifications(env, {
       customer: segment.customerContext,
       order: { items: orderItems },
       scenario: 'ALL',
       options: {
         expand: ['redeemable'],
-        limit: 50,
         sorting_rule: 'BEST_DEAL',
       },
     });
-
-    const redeemables = parseQualificationResponse(response);
-
-    // Warn if response was truncated (more results available than returned)
-    const total = response?.qualifications?.redeemables?.total
-      ?? response?.redeemables?.total
-      ?? redeemables.length;
-    if (total > redeemables.length) {
-      console.warn(
-        `[pp-pricing-worker] Qualification response truncated for segment "${segment.key}": got ${redeemables.length} of ${total} redeemables`,
-      );
-    }
 
     const matrix = buildPricingMatrix(products, redeemables, env);
     const offers = buildOffersBundle(redeemables, env);

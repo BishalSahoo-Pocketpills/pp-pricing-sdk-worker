@@ -49,6 +49,32 @@ export async function updateProducts(
   kv: KVNamespace,
   incoming: Record<string, number>,
 ): Promise<Record<string, ProductEntry>> {
+  // KV-based lock to serialize concurrent read-modify-write cycles.
+  // NOTE (TOCTOU): KV locks are not truly atomic — two workers checking
+  // the lock at the same instant could both see it as absent and proceed.
+  // This is an inherent limitation of eventually-consistent KV stores.
+  // The lock still eliminates the vast majority of races (sequential
+  // webhooks, background updates) and the worst-case outcome is a
+  // redundant catalog write, not data corruption.
+  const lockKey = KV_KEYS.CATALOG_LOCK;
+  const existingLock = await kv.get(lockKey);
+  if (existingLock) {
+    // Another update is in progress — return current state without modifying
+    return getProducts(kv);
+  }
+  await kv.put(lockKey, String(Date.now()), { expirationTtl: CATALOG.CATALOG_LOCK_TTL });
+
+  try {
+    return await updateProductsInner(kv, incoming);
+  } finally {
+    await kv.delete(lockKey);
+  }
+}
+
+async function updateProductsInner(
+  kv: KVNamespace,
+  incoming: Record<string, number>,
+): Promise<Record<string, ProductEntry>> {
   const existing = await getProducts(kv);
   const now = Date.now();
 

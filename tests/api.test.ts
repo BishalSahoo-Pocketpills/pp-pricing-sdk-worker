@@ -284,6 +284,26 @@ describe('handleHealth', () => {
     const res = await handleHealth(req, env);
     const data = await res.json();
     expect(data.lastRevalidation).toBeNull();
+    expect(data.revalidating).toBe(false);
+  });
+
+  it('returns revalidating: true when revalidation lock is set', async () => {
+    const kv = new MockKV();
+    await kv.put(KV_KEYS.REVALIDATION_LOCK, String(Date.now()));
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
+    const req = makeRequest('https://worker.test/health');
+    const res = await handleHealth(req, env);
+    const data = await res.json();
+    expect(data.revalidating).toBe(true);
+  });
+
+  it('returns revalidating: false when no lock exists', async () => {
+    const kv = new MockKV();
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace });
+    const req = makeRequest('https://worker.test/health');
+    const res = await handleHealth(req, env);
+    const data = await res.json();
+    expect(data.revalidating).toBe(false);
   });
 });
 

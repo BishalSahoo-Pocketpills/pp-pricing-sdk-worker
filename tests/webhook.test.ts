@@ -267,7 +267,7 @@ describe('revalidateAllSegments', () => {
     expect(memberOffers.coupons).toEqual([]);
   });
 
-  it('calls performCMSSync when CMS_SYNC_ENABLED is true', async () => {
+  it('sets cms:sync-pending flag when CMS_SYNC_ENABLED is true', async () => {
     const kv = new MockKV();
     await kv.put(
       KV_KEYS.PRODUCTS_CATALOG,
@@ -286,18 +286,34 @@ describe('revalidateAllSegments', () => {
       new Response(JSON.stringify({ redeemables: { data: [] } })),
     );
 
-    // Mock performCMSSync (which internally calls syncPricingToCMS + syncOffersToCMS)
-    const cms = await import('@/cms');
-    const performSyncSpy = vi.spyOn(cms, 'performCMSSync').mockResolvedValue({
-      pricing: { created: 0, updated: 0, published: 0, errors: [] },
-      offers: { created: 0, updated: 0, published: 0, errors: [] },
-    });
+    await revalidateAllSegments(env);
+
+    // Should set pending flag instead of calling performCMSSync inline
+    const pending = await kv.get(KV_KEYS.CMS_SYNC_PENDING);
+    expect(pending).toBeTruthy();
+  });
+
+  it('does not set cms:sync-pending flag when CMS_SYNC_ENABLED is false', async () => {
+    const kv = new MockKV();
+    await kv.put(
+      KV_KEYS.PRODUCTS_CATALOG,
+      JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
+    );
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace, CMS_SYNC_ENABLED: 'false' });
+
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
 
     await revalidateAllSegments(env);
 
-    expect(performSyncSpy).toHaveBeenCalledWith(env);
-
-    performSyncSpy.mockRestore();
+    const pending = await kv.get(KV_KEYS.CMS_SYNC_PENDING);
+    expect(pending).toBeNull();
   });
 
   it('handles qualification failure for individual segments', async () => {

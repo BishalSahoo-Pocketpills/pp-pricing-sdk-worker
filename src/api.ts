@@ -2,7 +2,7 @@ import { sanitizeProductIds, sanitizeString, corsHeaders, readBodyWithLimit } fr
 import { getPricing, updateProducts, getSegments, getMeta, getOffers } from '@/store';
 import { fetchValidations, fetchQualifications } from '@/voucherify-client';
 import { setupCollections, getCMSStatus, performCMSSync } from '@/cms';
-import { KV_KEYS } from '@/config';
+import { KV_KEYS, CATALOG } from '@/config';
 import type { Env, PricingEntry, PricingResponse, OffersResponse } from '@/types';
 
 export async function handlePrices(
@@ -19,6 +19,14 @@ export async function handlePrices(
   if (productIds.length === 0) {
     return jsonResponse(
       { error: 'Missing products parameter' },
+      400,
+      request,
+      env,
+    );
+  }
+  if (productIds.length > CATALOG.MAX_PRODUCT_IDS_PER_REQUEST) {
+    return jsonResponse(
+      { error: `Too many products (max ${CATALOG.MAX_PRODUCT_IDS_PER_REQUEST})` },
       400,
       request,
       env,
@@ -116,7 +124,7 @@ export async function handleValidate(
 
   try {
     const result = await fetchValidations(env, body);
-    return jsonResponse(result, 200, request, env);
+    return jsonResponse(sanitizeValidationResponse(result), 200, request, env);
   } catch (error: any) {
     return jsonResponse(
       { error: error.message || 'Validation failed' },
@@ -171,17 +179,18 @@ export async function handleHealth(
   request: Request,
   env: Env,
 ): Promise<Response> {
-  const lastRevalidation = await getMeta(
-    env.PRICING_KV,
-    KV_KEYS.META_LAST_REVALIDATION,
-  );
-  const segments = await getSegments(env.PRICING_KV);
+  const [lastRevalidation, segments, revalidationLock] = await Promise.all([
+    getMeta(env.PRICING_KV, KV_KEYS.META_LAST_REVALIDATION),
+    getSegments(env.PRICING_KV),
+    env.PRICING_KV.get(KV_KEYS.REVALIDATION_LOCK),
+  ]);
 
   return jsonResponse(
     {
       status: 'ok',
       lastRevalidation: lastRevalidation || null,
       segmentCount: segments.length,
+      revalidating: revalidationLock !== null,
     },
     200,
     request,
@@ -231,10 +240,10 @@ export async function handleCMSSync(
   // Fire-and-forget: sync in background, respond immediately
   ctx.waitUntil(
     performCMSSync(env)
-      .then((result) =>
+      .then((syncResult) =>
         env.PRICING_KV.put(
           KV_KEYS.META_LAST_CMS_SYNC_RESULT,
-          JSON.stringify({ status: 'ok', ...result, timestamp: new Date().toISOString() }),
+          JSON.stringify({ status: 'ok', ...syncResult, timestamp: new Date().toISOString() }),
         ),
       )
       .catch((err) => {
@@ -279,6 +288,29 @@ export async function handleOffers(
   };
 
   return jsonResponse(body, 200, request, env);
+}
+
+function sanitizeValidationResponse(response: any): any {
+  if (!response || typeof response !== 'object') return response;
+
+  const sanitized: Record<string, any> = {
+    valid: response.valid,
+    tracking_id: undefined, // strip
+  };
+
+  if (Array.isArray(response.redeemables)) {
+    sanitized.redeemables = response.redeemables.map((r: any) => ({
+      id: r.id,
+      object: r.object,
+      status: r.status,
+      result: r.result ? {
+        discount: r.result.discount,
+      } : undefined,
+      applicable_to: r.applicable_to,
+    }));
+  }
+
+  return sanitized;
 }
 
 const ALLOWED_VOUCHERIFY_KEYS = new Set([

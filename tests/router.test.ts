@@ -34,10 +34,18 @@ describe('router', () => {
     expect(data.status).toBe('ok');
   });
 
-  it('routes GET /api/segments', async () => {
-    const req = new Request('https://worker.test/api/segments');
+  it('routes GET /api/segments with admin token', async () => {
+    const req = new Request('https://worker.test/api/segments', {
+      headers: { Authorization: 'Bearer test-admin-token' },
+    });
     const res = await router(req, env, makeCtx());
     expect(res.status).toBe(200);
+  });
+
+  it('rejects GET /api/segments without admin token', async () => {
+    const req = new Request('https://worker.test/api/segments');
+    const res = await router(req, env, makeCtx());
+    expect(res.status).toBe(401);
   });
 
   it('routes GET /api/prices/:segment', async () => {
@@ -115,8 +123,10 @@ describe('router', () => {
     expect(res.status).toBe(404);
   });
 
-  it('routes GET /api/offers/:segment', async () => {
-    const req = new Request('https://worker.test/api/offers/anonymous');
+  it('routes GET /api/offers/:segment with admin token', async () => {
+    const req = new Request('https://worker.test/api/offers/anonymous', {
+      headers: { Authorization: 'Bearer test-admin-token' },
+    });
     const res = await router(req, env, makeCtx());
     expect(res.status).toBe(200);
     const data = await res.json();
@@ -124,8 +134,16 @@ describe('router', () => {
     expect(data.offers).toBeDefined();
   });
 
-  it('returns 400 for /api/offers/ without segment', async () => {
-    const req = new Request('https://worker.test/api/offers/');
+  it('rejects GET /api/offers/:segment without admin token', async () => {
+    const req = new Request('https://worker.test/api/offers/anonymous');
+    const res = await router(req, env, makeCtx());
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 for /api/offers/ without segment (with admin token)', async () => {
+    const req = new Request('https://worker.test/api/offers/', {
+      headers: { Authorization: 'Bearer test-admin-token' },
+    });
     const res = await router(req, env, makeCtx());
     expect(res.status).toBe(400);
   });

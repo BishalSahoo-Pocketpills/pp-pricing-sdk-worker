@@ -163,11 +163,35 @@ export function buildPricingMatrix(
   env: Env,
 ): Record<string, PricingEntry> {
   const result: Record<string, PricingEntry> = {};
+  const productIds = Object.keys(products);
 
-  for (const [productId, product] of Object.entries(products)) {
-    const applicable = redeemables.filter((r) =>
-      isApplicableToProduct(r, productId),
-    );
+  // Pre-index: bucket redeemables by product for O(n+m) instead of O(n*m)
+  const universalRedeemables: VoucherifyRedeemable[] = [];
+  const productIndex = new Map<string, VoucherifyRedeemable[]>();
+
+  for (const r of redeemables) {
+    const applicable = r.applicable_to;
+    if (!applicable?.data || applicable.data.length === 0) {
+      universalRedeemables.push(r);
+    } else {
+      for (const item of applicable.data) {
+        const key = item.source_id || item.id;
+        if (key) {
+          let bucket = productIndex.get(key);
+          if (!bucket) {
+            bucket = [];
+            productIndex.set(key, bucket);
+          }
+          bucket.push(r);
+        }
+      }
+    }
+  }
+
+  for (const productId of productIds) {
+    const product = products[productId];
+    const targeted = productIndex.get(productId) || [];
+    const applicable = universalRedeemables.concat(targeted);
     const best = selectBestDiscount(applicable, product.basePrice);
     result[productId] = buildPricingEntry(product.basePrice, best, env);
   }

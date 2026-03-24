@@ -42,8 +42,11 @@ export async function router(
     return handlePrices(request, env, segment, ctx);
   }
 
-  // Offers — /api/offers/:segment
+  // Offers — /api/offers/:segment (admin-only: exposes campaign data)
   if (method === 'GET' && pathname.startsWith(PATHS.OFFERS)) {
+    if (!verifyAdminToken(request, env.ADMIN_API_TOKEN)) {
+      return new Response('Unauthorized', { status: 401 });
+    }
     const segment = pathname.slice(PATHS.OFFERS.length);
     if (!segment) {
       return new Response('Missing segment', { status: 400 });
@@ -64,8 +67,11 @@ export async function router(
     return handleQualify(request, env);
   }
 
-  // Segments
+  // Segments (admin-only: exposes internal segment keys)
   if (method === 'GET' && pathname === PATHS.SEGMENTS) {
+    if (!verifyAdminToken(request, env.ADMIN_API_TOKEN)) {
+      return new Response('Unauthorized', { status: 401 });
+    }
     return handleSegments(request, env);
   }
 

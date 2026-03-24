@@ -95,10 +95,28 @@ export async function readBodyWithLimit(request: Request): Promise<{ body: strin
     return { body: '', error: 'Request body too large' };
   }
 
-  // Read the actual body and enforce size limit (handles chunked/spoofed headers)
-  const text = await request.text();
-  if (text.length > MAX_BODY_SIZE) {
-    return { body: '', error: 'Request body too large' };
+  // Stream body to enforce size limit without buffering the full payload on oversize
+  const reader = request.body?.getReader();
+  if (!reader) return { body: '' };
+
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.byteLength;
+    if (totalBytes > MAX_BODY_SIZE) {
+      await reader.cancel();
+      return { body: '', error: 'Request body too large' };
+    }
+    chunks.push(value);
+  }
+
+  const decoder = new TextDecoder();
+  let text = '';
+  for (let i = 0; i < chunks.length; i++) {
+    text += decoder.decode(chunks[i], { stream: i < chunks.length - 1 });
   }
 
   return { body: text };
