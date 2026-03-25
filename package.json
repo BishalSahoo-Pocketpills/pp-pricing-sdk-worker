@@ -1,6 +1,6 @@
 {
   "name": "pp-pricing-worker",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Cloudflare Worker for edge pricing via Voucherify",
   "private": true,
   "scripts": {
