@@ -34,6 +34,8 @@ const PRODUCT_FIELDS = [
   { type: 'PlainText', displayName: 'Category', slug: 'category', isRequired: false },
   { type: 'Switch', displayName: 'Active', slug: 'active', isRequired: false },
   { type: 'PlainText', displayName: 'Last Updated', slug: 'last-updated', isRequired: false },
+  { type: 'PlainText', displayName: 'Default Text', slug: 'default-text', isRequired: false },
+  { type: 'Number', displayName: 'Default Price', slug: 'default-price', isRequired: false },
 ];
 
 const CATEGORY_FIELDS = [

@@ -316,6 +316,68 @@ describe('revalidateAllSegments', () => {
     expect(pending).toBeNull();
   });
 
+  it('triggers CMS sync after revalidation when CMS_SYNC_ENABLED', async () => {
+    const kv = new MockKV();
+    await kv.put(
+      KV_KEYS.PRODUCTS_CATALOG,
+      JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
+    );
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace, CMS_SYNC_ENABLED: 'true' });
+
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+
+    // Mock performCMSSync to verify it's called via processPendingCMSSync
+    const cms = await import('@/cms');
+    const syncSpy = vi.spyOn(cms, 'performCMSSync').mockResolvedValue({
+      created: 0, updated: 0, published: 0, errors: [],
+    });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await processWebhook('campaign.updated', env);
+
+    // revalidateAllSegments sets the pending flag, then processWebhook calls processPendingCMSSync
+    expect(syncSpy).toHaveBeenCalledWith(env);
+
+    syncSpy.mockRestore();
+  });
+
+  it('skips CMS sync when CMS_SYNC_ENABLED is false', async () => {
+    const kv = new MockKV();
+    await kv.put(
+      KV_KEYS.PRODUCTS_CATALOG,
+      JSON.stringify({ 'prod-1': { basePrice: 60, lastSeen: 1000 } }),
+    );
+    const env = mockEnv({ PRICING_KV: kv as unknown as KVNamespace, CMS_SYNC_ENABLED: 'false' });
+
+    const spy = vi.spyOn(globalThis, 'fetch');
+    spy.mockResolvedValueOnce(new Response('Not Found', { status: 404 }));
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+    spy.mockResolvedValueOnce(
+      new Response(JSON.stringify({ redeemables: { data: [] } })),
+    );
+
+    const cms = await import('@/cms');
+    const syncSpy = vi.spyOn(cms, 'performCMSSync').mockResolvedValue({
+      created: 0, updated: 0, published: 0, errors: [],
+    });
+
+    await processWebhook('campaign.updated', env);
+
+    // No pending flag set → processPendingCMSSync is a no-op
+    expect(syncSpy).not.toHaveBeenCalled();
+
+    syncSpy.mockRestore();
+  });
+
   it('handles qualification failure for individual segments', async () => {
     const kv = new MockKV();
     await kv.put(

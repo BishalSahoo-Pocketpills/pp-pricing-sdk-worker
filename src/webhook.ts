@@ -1,4 +1,5 @@
 import { PRICING_EVENTS, KV_KEYS, QUALIFICATION } from '@/config';
+import { processPendingCMSSync } from '@/cron';
 import { verifyWebhookSignature } from '@/security';
 import { getProducts, setPricing, setOffers, getMeta, setMeta } from '@/store';
 import { fetchQualifications } from '@/voucherify-client';
@@ -54,6 +55,7 @@ export async function processWebhook(
   }
 
   await revalidateAllSegments(env);
+  await processPendingCMSSync(env);
 }
 
 const REVALIDATION_LOCK_TTL = 30; // seconds

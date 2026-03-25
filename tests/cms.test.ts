@@ -171,10 +171,10 @@ describe('CMS module', () => {
         loyaltyPrograms: 'col_lp',
       });
       expect(mockedCreateCollection).toHaveBeenCalledTimes(8);
-      // Categories: 2 fields, Products: 11, Segments: 2, 4 offer collections: 13 each = 52, Loyalty: 13+3=16
-      // Total: 2 + 11 + 2 + 52 + 16 = 83
-      // +1 ensureField for offer-type on loyaltyPrograms = 84
-      expect(mockedCreateField).toHaveBeenCalledTimes(84);
+      // Categories: 2 fields, Products: 13 (11+2 default-text/default-price), Segments: 2, 4 offer collections: 13 each = 52, Loyalty: 13+3=16
+      // Total: 2 + 13 + 2 + 52 + 16 = 85
+      // +1 ensureField for offer-type on loyaltyPrograms = 86
+      expect(mockedCreateField).toHaveBeenCalledTimes(86);
       // 1 Products→Categories + 5 offer collections × 2 ensureFieldMultiRef calls = 11
       expect(mockedCreateFieldMultiRef).toHaveBeenCalledTimes(11);
 
